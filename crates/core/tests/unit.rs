@@ -261,3 +261,89 @@ fn bad_inputs_are_errors_not_panics() {
     bad.gate(Gate::RX(Param::weight(3)), &[0]);
     assert!(execute::<f64>(&bad, 1, &[], &[0.0; 3]).is_err(), "needs 4 weights");
 }
+
+/// <psi| P |psi> computed directly from a state, for checking the batched measurement path.
+fn pauli_expval_direct(n: usize, psi: &[C], word: &[(usize, Pauli)]) -> f64 {
+    let mut acc = c(0.0, 0.0);
+    for (i, a) in psi.iter().enumerate() {
+        // P|i> = phase |j>
+        let (mut j, mut ph) = (i, c(1.0, 0.0));
+        for &(w, p) in word {
+            let bit = 1 << (n - 1 - w);
+            let one = i & bit != 0;
+            match p {
+                Pauli::I => {}
+                Pauli::X => j ^= bit,
+                Pauli::Y => {
+                    j ^= bit;
+                    ph *= if one { c(0.0, -1.0) } else { c(0.0, 1.0) };
+                }
+                Pauli::Z => {
+                    if one {
+                        ph = -ph;
+                    }
+                }
+            }
+        }
+        acc += psi[j].conj() * ph * a;
+    }
+    acc.re
+}
+
+#[test]
+fn batched_outputs_match_final_states_at_every_tile_size() {
+    let mut rng = Rng(1234);
+    let words: Vec<Vec<(usize, Pauli)>> = vec![
+        vec![(0, Pauli::Z)],
+        vec![(0, Pauli::X)],
+        vec![(0, Pauli::Y)],
+        vec![(0, Pauli::X), (1, Pauli::Y)],
+        vec![(0, Pauli::Y), (1, Pauli::Y)],
+        vec![(0, Pauli::Z), (1, Pauli::Z)],
+        vec![(0, Pauli::Y), (1, Pauli::Z), (2, Pauli::Y)],
+        vec![(0, Pauli::Y), (1, Pauli::X), (2, Pauli::Y), (3, Pauli::Y)],
+    ];
+    for n in 1..=11 {
+        for &batch in &[1usize, 7, 8, 9, 37] {
+            let mut circ = random_circuit(&mut rng, n, 30);
+            let usable: Vec<&Vec<(usize, Pauli)>> = words.iter().filter(|w| w.len() <= n).collect();
+            for (k, w) in usable.iter().enumerate() {
+                // Map the word onto shuffled wires so wire order is exercised too.
+                let ww: Vec<(usize, Pauli)> = w.iter().map(|&(q, p)| ((q + k) % n, p)).collect();
+                if k % 2 == 0 {
+                    circ.expval(&ww);
+                } else {
+                    circ.var(&ww);
+                }
+            }
+            if n > 1 {
+                circ.probs(&[n - 1, 0]);
+            }
+            let x = random_inputs(&mut rng, n, batch);
+            let wts: Vec<f64> = (0..4).map(|_| rng.angle()).collect();
+            let out = execute::<f64>(&circ, batch, &x, &wts).unwrap();
+            let psi = final_states::<f64>(&circ, batch, &x, &wts).unwrap();
+            let n_out = circ.n_outputs();
+            for b in 0..batch {
+                let s = &psi[b * (1 << n)..(b + 1) * (1 << n)];
+                let mut want = vec![];
+                for (k, w) in usable.iter().enumerate() {
+                    let ww: Vec<(usize, Pauli)> = w.iter().map(|&(q, p)| ((q + k) % n, p)).collect();
+                    let e = pauli_expval_direct(n, s, &ww);
+                    want.push(if k % 2 == 0 { e } else { 1.0 - e * e });
+                }
+                if n > 1 {
+                    let mut pr = [0.0; 4];
+                    for (i, a) in s.iter().enumerate() {
+                        pr[2 * (i & 1) + (i >> (n - 1))] += a.norm_sqr();
+                    }
+                    want.extend(pr);
+                }
+                let got = &out[b * n_out..(b + 1) * n_out];
+                for (o, (g, wv)) in got.iter().zip(&want).enumerate() {
+                    assert!((g - wv).abs() < 1e-12, "n={n} batch={batch} row={b} output {o}: {g} vs {wv}");
+                }
+            }
+        }
+    }
+}

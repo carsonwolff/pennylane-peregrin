@@ -26,6 +26,7 @@ mod gates;
 mod program;
 mod real;
 mod rng;
+mod tile;
 
 pub use circuit::{Circuit, Gate, Measurement, Op, Param, Pauli, PauliWord, StatePrep};
 pub use exec::{execute, execute_into, final_states, sample};

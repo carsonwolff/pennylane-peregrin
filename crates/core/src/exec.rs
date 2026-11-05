@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use crate::circuit::Circuit;
 use crate::program::{probs_map, Program, Scratch};
 use crate::rng::SplitMix64;
+use crate::tile::{TileProgram, MAX_TILE_QUBITS};
 use crate::{err, Real, Result};
 
 /// Below this many circuits the batch runs on the calling thread.
@@ -49,7 +50,11 @@ pub fn execute_into<T: Real>(circuit: &Circuit, batch: usize, inputs: &[T], weig
     if batch == 0 || w == 0 {
         return Ok(());
     }
+    let tiled = (circuit.n_qubits <= MAX_TILE_QUBITS).then(|| TileProgram::new(&prog));
     let run = |rows: &[T], dst: &mut [T]| {
+        if let Some(tp) = &tiled {
+            return tp.run(rows, d_x.max(1), dst);
+        }
         let mut sc = Scratch::new(prog.dim);
         for (x, o) in rows.chunks_exact(d_x.max(1)).zip(dst.chunks_exact_mut(w)) {
             prog.evolve(x, &mut sc);

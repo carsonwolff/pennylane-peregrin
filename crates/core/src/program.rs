@@ -18,7 +18,7 @@ pub(crate) enum Val<T> {
 
 impl<T: Real> Val<T> {
     #[inline(always)]
-    fn get(&self, x: &[T]) -> T {
+    pub(crate) fn get(&self, x: &[T]) -> T {
         match *self {
             Val::Fixed(v) => v,
             Val::Input { col, scale } => scale * x[col],
@@ -27,16 +27,16 @@ impl<T: Real> Val<T> {
 }
 
 #[derive(Clone, Debug)]
-enum Factor<T> {
+pub(crate) enum Factor<T> {
     Fixed(M2<T>),
     Dyn { k: K1, p: [Val<T>; 3] },
 }
 
 /// Product of single-qubit factors, applied first to last.
 #[derive(Clone, Debug)]
-struct Fused<T> {
-    factors: Vec<Factor<T>>,
-    diag: bool,
+pub(crate) struct Fused<T> {
+    pub(crate) factors: Vec<Factor<T>>,
+    pub(crate) diag: bool,
 }
 
 impl<T: Real> Fused<T> {
@@ -57,8 +57,24 @@ impl<T: Real> Fused<T> {
         self.factors.push(f);
     }
 
+    /// True when the product is a real matrix for every input (so it keeps a real state real).
+    pub(crate) fn is_real(&self) -> bool {
+        self.factors.iter().all(|f| match f {
+            Factor::Fixed(m) => m.iter().all(|z| z.im == T::zero()),
+            Factor::Dyn { k, .. } => matches!(k, K1::RY),
+        })
+    }
+
+    /// The single precomputed matrix, when nothing in the group depends on the inputs.
+    pub(crate) fn fixed(&self) -> Option<M2<T>> {
+        match self.factors.as_slice() {
+            [Factor::Fixed(m)] => Some(*m),
+            _ => None,
+        }
+    }
+
     #[inline(always)]
-    fn eval(&self, x: &[T]) -> M2<T> {
+    pub(crate) fn eval(&self, x: &[T]) -> M2<T> {
         let mut u: Option<M2<T>> = None;
         for f in &self.factors {
             let m = match f {
@@ -75,7 +91,7 @@ impl<T: Real> Fused<T> {
 }
 
 #[derive(Clone, Debug)]
-enum Stage<T> {
+pub(crate) enum Stage<T> {
     /// Single-qubit unitary on the amplitude pairs `stride` apart.
     U1 { s: usize, f: Fused<T> },
     /// Controlled single-qubit unitary: control mask `cm`, target stride `ts`.
@@ -89,7 +105,7 @@ enum Stage<T> {
 }
 
 #[derive(Clone, Debug)]
-enum MeasPlan {
+pub(crate) enum MeasPlan {
     Expval { flip: usize, zy: usize, ny: u8 },
     Var { flip: usize, zy: usize, ny: u8 },
     /// Output slot for each basis index.
@@ -99,9 +115,9 @@ enum MeasPlan {
 pub(crate) struct Program<T> {
     pub(crate) dim: usize,
     pub(crate) n_out: usize,
-    prep: Option<StatePrep>,
-    stages: Vec<Stage<T>>,
-    meas: Vec<MeasPlan>,
+    pub(crate) prep: Option<StatePrep>,
+    pub(crate) stages: Vec<Stage<T>>,
+    pub(crate) meas: Vec<MeasPlan>,
 }
 
 /// Per-thread buffers, reused for every circuit in a chunk.
@@ -128,7 +144,7 @@ fn i_pow<T: Real>(k: u8) -> C<T> {
 }
 
 #[inline(always)]
-fn sign_of<T: Real>(i: usize, zy: usize) -> T {
+pub(crate) fn sign_of<T: Real>(i: usize, zy: usize) -> T {
     if (i & zy).count_ones() & 1 == 1 {
         -T::one()
     } else {
