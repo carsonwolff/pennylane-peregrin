@@ -207,7 +207,8 @@ def main():
                 prev = None  # (batch, median_s) of last successful case, for projection
                 for B in sorted(args.batches):
                     cfg = {**base, "n_qubits": n, "n_layers": layers[n], "batch": B, "precision": args.precision}
-                    if prev and prev[1] * B / prev[0] > args.timeout:
+                    # A case makes at least 4 calls (first call + 3 timed reps), so project 4x.
+                    if prev and 4 * prev[1] * B / prev[0] > args.timeout:
                         res = {"status": "skipped", "error": "projected to exceed timeout"}
                     else:
                         res = run_case(backend, cfg, args.timeout, args.threads)
