@@ -27,6 +27,7 @@ class Workload:
     n_layers: int = 1
     seed: int = 0
     embed: str = "stateprep"
+    circuit: str = "generic"  # key into circuits.CIRCUITS
 
     @property
     def dim(self) -> int:
@@ -34,6 +35,7 @@ class Workload:
 
     @property
     def n_out(self) -> int:
+        """Output width of the generic circuit. Other circuits: circuits.n_out(wl)."""
         return 2 * self.n_qubits
 
     def to_dict(self):

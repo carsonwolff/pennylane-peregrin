@@ -13,18 +13,19 @@ import numpy as np
 
 
 def main(cfg):
+    import circuits
     from backends import BACKENDS
-    from workload import Workload, make_features, make_weights
+    from workload import Workload
 
     wl = Workload(cfg["n_qubits"], cfg["batch"], cfg.get("n_layers", 1), cfg.get("seed", 0),
-                  cfg.get("embed", "stateprep"))
+                  cfg.get("embed", "stateprep"), cfg.get("circuit", "generic"))
     precision = cfg.get("precision", "f64")
     reps, budget = cfg.get("reps", 10), cfg.get("budget_s", 60.0)
     check_rows = cfg.get("check_rows", 64)
 
     builder = BACKENDS[cfg["backend"]][0]
     in_dtype = np.float32 if precision == "f32" else np.float64
-    F, W = make_features(wl, in_dtype), make_weights(wl, in_dtype)
+    F, W = circuits.inputs(wl, in_dtype)  # per-circuit data, shared weights
 
     t = time.perf_counter()
     run, info = builder(wl, precision)
@@ -36,8 +37,9 @@ def main(cfg):
     t_first = time.perf_counter() - t
 
     out = np.asarray(out)
-    if out.shape != (wl.batch, wl.n_out):
-        raise ValueError(f"bad output shape {out.shape}, expected {(wl.batch, wl.n_out)}")
+    expect = (wl.batch, circuits.n_out(wl))
+    if out.shape != expect:
+        raise ValueError(f"bad output shape {out.shape}, expected {expect}")
     if not np.all(np.isfinite(out)):
         raise ValueError("non-finite outputs")
 

@@ -85,12 +85,20 @@ def plot(rows, folder):
     return path
 
 
+def _layers(rows, env):
+    per_n = sorted({(r["n_qubits"], r.get("n_layers")) for r in rows})
+    if len({l for _, l in per_n}) <= 1:
+        return str(per_n[0][1] if per_n else env["args"].get("layers"))
+    return ", ".join(f"{l} at n={n}" for n, l in per_n)
+
+
 def main():
     folder = Path(sys.argv[1])
     rows, env = load(folder)
     hdr = (f"# Benchmark {env['timestamp']}\n\n"
            f"- CPU: {env['cpu']} ({env['cpu_count']} threads); GPU: {env.get('gpu') or 'none'}\n"
-           f"- Precision: {env['args']['precision']}; layers: {env['args']['layers']}; "
+           f"- Circuit: {env['args'].get('circuit', 'generic')}; precision: {env['args']['precision']}; "
+           f"layers: {_layers(rows, env)}; "
            f"embedding: {env['args'].get('embed', 'amplitude')}; "
            f"OMP_NUM_THREADS: {env['env'].get('OMP_NUM_THREADS') or 'unset'}\n"
            f"- Packages: " + ", ".join(f"{k} {v}" for k, v in env["packages"].items()) + "\n"

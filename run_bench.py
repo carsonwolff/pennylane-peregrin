@@ -6,6 +6,7 @@ Examples
   python run_bench.py --backends dq-jax-gpu jax-hand-gpu lightning.gpu+qjit --qubits 4 8
   python run_bench.py --batches 100 1000 10000 100000 --precision f32 --threads 8
   python run_bench.py --embed amplitude --qubits 4 8     # the paper's AmplitudeEmbedding path
+  python run_bench.py --circuit owner-mri                # the paper's exact 2 and 4 qubit circuits
 
 Output: results/<timestamp>/{env.json, results.jsonl}; then run summarize.py on that folder.
 """
@@ -22,6 +23,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
+import circuits  # noqa: E402
 from backends import BACKENDS, REFERENCE  # noqa: E402
 
 PKGS = [
@@ -136,9 +138,12 @@ def max_abs_err(a, b):
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--backends", nargs="+", default=["all"])
-    ap.add_argument("--qubits", nargs="+", type=int, default=[2, 4, 6, 8])
+    ap.add_argument("--qubits", nargs="+", type=int, default=None,
+                    help="qubit counts (default: the circuit's own sweep; generic is 2 4 6 8)")
     ap.add_argument("--batches", nargs="+", type=int, default=[100, 1000, 10000])
-    ap.add_argument("--layers", type=int, default=1)
+    ap.add_argument("--circuit", choices=list(circuits.CIRCUITS), default="generic",
+                    help="workload circuit (see circuits.py); default is the original qbench circuit")
+    ap.add_argument("--layers", type=int, default=None, help="n_layers (default: the circuit's own default)")
     ap.add_argument("--embed", choices=["stateprep", "amplitude"], default="stateprep",
                     help="state loading; 'amplitude' reproduces AmplitudeEmbedding's decomposition cost under qjit/qulacs")
     ap.add_argument("--precision", choices=["f64", "f32"], default="f64")
@@ -166,6 +171,15 @@ def main():
     names = [n for n in names if n not in skipped]
     if skipped:
         print(f"skipping unavailable: {', '.join(skipped)}")
+    circ = circuits.CIRCUITS[args.circuit]
+    if args.qubits is None:
+        args.qubits = list(circ.qubits)
+    if not circ.state_encoded:
+        args.embed = "angle"  # --embed does not apply; record what actually runs
+    try:
+        layers = {n: circuits.resolve_layers(args.circuit, n, args.layers) for n in args.qubits}
+    except ValueError as e:
+        sys.exit(str(e))
     tol = args.tol if args.tol is not None else (1e-9 if args.precision == "f64" else 1e-4)
 
     out_dir = args.out or HERE / "results" / dt.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -174,12 +188,14 @@ def main():
     results_path = out_dir / "results.jsonl"
     print(f"writing to {out_dir}")
 
-    base = {"n_layers": args.layers, "seed": args.seed, "embed": args.embed, "reps": args.reps, "budget_s": args.budget}
+    base = {"circuit": args.circuit, "seed": args.seed, "embed": args.embed, "reps": args.reps,
+            "budget_s": args.budget}
 
     # Reference outputs (default.qubit, f64) on the first 64 circuits, per qubit count.
     refs = {}
     for n in args.qubits:
-        r = run_case(REFERENCE, {**base, "n_qubits": n, "batch": 64, "precision": "f64", "reps": 1},
+        r = run_case(REFERENCE, {**base, "n_qubits": n, "n_layers": layers[n], "batch": 64,
+                                 "precision": "f64", "reps": 1},
                      args.timeout, args.threads)
         if r["status"] != "ok":
             sys.exit(f"reference failed for n={n}: {r.get('error')}\n{r.get('traceback', r.get('stderr', ''))}")
@@ -190,7 +206,7 @@ def main():
             for n in args.qubits:
                 prev = None  # (batch, median_s) of last successful case, for projection
                 for B in sorted(args.batches):
-                    cfg = {**base, "n_qubits": n, "batch": B, "precision": args.precision}
+                    cfg = {**base, "n_qubits": n, "n_layers": layers[n], "batch": B, "precision": args.precision}
                     if prev and prev[1] * B / prev[0] > args.timeout:
                         res = {"status": "skipped", "error": "projected to exceed timeout"}
                     else:
