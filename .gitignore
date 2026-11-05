@@ -5,3 +5,5 @@ target/
 *.pdf
 *.gif
 *.so
+# owner's original paper code, kept private
+parallel_quantum_processing.py
