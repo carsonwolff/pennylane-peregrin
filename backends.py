@@ -11,7 +11,7 @@ Imports are local so a missing package only disables that backend.
 import numpy as np
 
 import circuits
-from workload import Workload, entangler_pairs
+from workload import Workload
 
 
 # ---------------------------------------------------------------- helpers
@@ -69,59 +69,12 @@ def build_jax_hand(wl: Workload, precision):
     """Batched state-vector simulator written directly in JAX, one jit for the batch.
 
     State is (batch, 2**n); wire 0 is the most significant bit (PennyLane order).
-    Each CNOT layer is precomposed into a single gather.
-    This specialized version is the original phase 1 bar and runs the generic circuit;
-    every other circuit goes through the template interpreter below.
+    Every circuit, generic included, runs through the template interpreter below. Until
+    2026-11-05 the generic circuit used a specialized einsum version (the original phase 1
+    bar, see git history); the elementwise interpreter measured 7 to 41% faster on it on
+    the i5-6300U, so it replaced it to keep the baseline as strong as possible.
     """
-    if wl.circuit != "generic":
-        return _build_jax_template(wl, precision)
-    jax = _jax_setup(precision)
-    import jax.numpy as jnp
-
-    n, L, D = wl.n_qubits, wl.n_layers, wl.dim
-    cdt = jnp.complex128 if precision == "f64" else jnp.complex64
-
-    idx = np.arange(D)
-    layer_perm = idx.copy()
-    for c, t in entangler_pairs(n):
-        cbit = (idx >> (n - 1 - c)) & 1
-        p = idx ^ (cbit << (n - 1 - t))  # CNOT: psi_new[i] = psi_old[p[i]]
-        layer_perm = layer_perm[p]  # compose in application order
-    layer_perm = jnp.asarray(layer_perm)
-
-    def apply_1q(psi, U, q):
-        B = psi.shape[0]
-        s = psi.reshape(B, 2**q, 2, 2 ** (n - q - 1))
-        s = jnp.einsum("ab,xibj->xiaj", U, s)
-        return s.reshape(B, D)
-
-    def gate(ry, rz):
-        c, s = jnp.cos(ry / 2), jnp.sin(ry / 2)
-        RY = jnp.array([[c, -s], [s, c]], dtype=cdt)
-        e = jnp.exp(-0.5j * rz).astype(cdt)
-        RZ = jnp.array([[e, 0], [0, jnp.conj(e)]], dtype=cdt)
-        return RZ @ RY  # RY first, then RZ
-
-    @jax.jit
-    def fn(F, W):
-        psi = F.astype(cdt)
-        for l in range(L):
-            for q in range(n):
-                psi = apply_1q(psi, gate(W[l, q, 0], W[l, q, 1]), q)
-            psi = psi[:, layer_perm]
-        B = psi.shape[0]
-        zs, xs = [], []
-        for q in range(n):
-            a = psi.reshape(B, 2**q, 2, 2 ** (n - q - 1))
-            p = jnp.abs(a) ** 2
-            zs.append(jnp.sum(p[:, :, 0, :] - p[:, :, 1, :], axis=(1, 2)))
-            xs.append(2 * jnp.sum(jnp.real(jnp.conj(a[:, :, 0, :]) * a[:, :, 1, :]), axis=(1, 2)))
-        return jnp.stack(zs + xs, axis=-1)
-
-    def run(F, W):
-        return np.asarray(fn(F, W))
-
-    return run, {"precision_effective": precision, "jax_device": str(jax.devices()[0])}
+    return _build_jax_template(wl, precision)
 
 
 def _build_jax_template(wl: Workload, precision):
@@ -176,28 +129,37 @@ def _build_jax_template(wl: Workload, precision):
         kind, i, scale = param
         return scale * (X[:, i] if kind == "x" else Wf[i])
 
+    # A 2x2 matrix is a tuple of four entries (u00, u01, u10, u11). Each entry is a scalar
+    # when the gate is shared by the whole batch, or a (B,) array when it takes a
+    # per-circuit angle. Entries are combined and applied elementwise, so per-circuit gates
+    # cost a few fused multiply-adds per amplitude instead of a batched matmul.
     def mat(name, th):
-        """(..., 2, 2) matrix; th is a scalar or a (B,) array."""
         if name == "H":
             h = 1 / np.sqrt(2)
-            return jnp.asarray([[h, h], [h, -h]], dtype=cdt)
-        c, s = jnp.cos(th / 2).astype(cdt), jnp.sin(th / 2).astype(cdt)
+            return (h, h, h, -h)
+        c, s = jnp.cos(th / 2), jnp.sin(th / 2)
         if name == "RX":
-            m = [[c, -1j * s], [-1j * s, c]]
-        elif name == "RY":
-            m = [[c, -s], [s, c]]
-        elif name == "RZ":
-            e = jnp.exp(-0.5j * th).astype(cdt)
-            m = [[e, 0 * e], [0 * e, jnp.conj(e)]]
-        else:
-            raise NotImplementedError(f"jax template interpreter: no matrix for {name}")
-        return jnp.moveaxis(jnp.asarray(m, dtype=cdt), (0, 1), (-2, -1)) if jnp.ndim(th) else jnp.asarray(m, cdt)
+            return (c, -1j * s, -1j * s, c)
+        if name == "RY":
+            return (c, -s, s, c)
+        if name == "RZ":
+            e = jnp.exp(-0.5j * th)
+            return (e, 0.0, 0.0, jnp.conj(e))
+        raise NotImplementedError(f"jax template interpreter: no matrix for {name}")
+
+    def mul(G, U):  # G @ U
+        g00, g01, g10, g11 = G
+        u00, u01, u10, u11 = U
+        return (g00 * u00 + g01 * u10, g00 * u01 + g01 * u11, g10 * u00 + g11 * u10, g10 * u01 + g11 * u11)
 
     def apply_1q(psi, U, q):
         B = psi.shape[0]
         s = psi.reshape(B, 2**q, 2, 2 ** (n - q - 1))
-        s = jnp.einsum("ab,xibj->xiaj" if U.ndim == 2 else "xab,xibj->xiaj", U, s)
-        return s.reshape(B, D)
+        a0, a1 = s[:, :, 0, :], s[:, :, 1, :]
+        u = [x.astype(cdt)[:, None, None] if jnp.ndim(x) else x for x in U]
+        b0 = u[0] * a0 + u[1] * a1
+        b1 = u[2] * a0 + u[3] * a1
+        return jnp.stack([b0, b1], axis=2).reshape(B, D)
 
     @jax.jit
     def fn(X, W):
@@ -214,7 +176,7 @@ def _build_jax_template(wl: Workload, precision):
                 U = None
                 for name, param in st[2]:
                     G = mat(name, None if param is None else angle(param, X, Wf))
-                    U = G if U is None else G @ U  # later gates multiply on the left
+                    U = G if U is None else mul(G, U)  # later gates multiply on the left
                 psi = apply_1q(psi, U, st[1])
             else:
                 if psi is None:
@@ -226,7 +188,7 @@ def _build_jax_template(wl: Workload, precision):
         for kind, q in meas:
             a = psi.reshape(B, 2**q, 2, 2 ** (n - q - 1))
             if kind == "Z":
-                p = jnp.abs(a) ** 2
+                p = jnp.real(a) ** 2 + jnp.imag(a) ** 2
                 cols.append(jnp.sum(p[:, :, 0, :] - p[:, :, 1, :], axis=(1, 2)))
             else:
                 cols.append(2 * jnp.sum(jnp.real(jnp.conj(a[:, :, 0, :]) * a[:, :, 1, :]), axis=(1, 2)))
