@@ -3,10 +3,19 @@
 Measures throughput (circuits/s) for MRI-style patch preprocessing: one 2 to 8 qubit
 circuit per image patch, run in batches of 100 to 100,000+.
 
-Circuit (see `workload.py`): amplitude-load a 2^n-pixel patch, then `n_layers` x
-(RY, RZ on every qubit, CNOT ring), then measure <Z_i> and <X_i> on every qubit (2n outputs).
-If your paper's circuit differs, edit `apply_circuit` and the matching hand-written JAX
-code in `backends.py`. The correctness check will catch it if the two disagree.
+Circuits (`--circuit`, see `circuits.py`):
+
+| name | qubits | what it is |
+|---|---|---|
+| `generic` (default) | 2, 4, 6, 8 | the original qbench circuit: amplitude-load a 2^n-pixel patch, `n_layers` x (RY, RZ on every qubit, CNOT ring), <Z_i> and <X_i> on every qubit |
+| `owner-mri` | 2, 4 | the paper's circuits, copied from `parallel_quantum_processing.py`; per-patch angles from patch statistics |
+| `pennylane-demo` | 4 | the PennyLane quanvolution demo: RY(pi x), `RandomLayers` (seed 42), <Z_i> |
+| `angle-trainable` | 4 | RY(x), trainable RX, open CNOT chain, <Z_i> (ResQuNNs) |
+| `amp-sel` | 5 | amplitude embedding, 3 x (RX RY RZ, open CNOT chain), <Z_i> |
+
+Each circuit has a PennyLane body (what the QNode backends run) and a gate-list template (what
+`jax-hand` and `peregrin` run). `tests/test_circuits.py` checks every template against
+default.qubit to 1e-12.
 
 ## Backends
 
@@ -18,6 +27,7 @@ code in `backends.py`. The correctness check will catch it if the two disagree.
 | `lightning.qubit` / `lightning.gpu` | plain QNode; broadcasting is split into one tape per circuit (the paper's setup) |
 | `lightning.qubit+qjit` / `lightning.gpu+qjit` | Catalyst `qjit` + `catalyst.vmap` over the batch |
 | `qulacs` / `qulacs-gpu` | `qulacs.simulator` via pennylane-qulacs |
+| `peregrin-cpu` | this project's Rust core (`crates/`) through its Python bindings; threads follow `--threads` |
 
 Unavailable backends (missing package, no GPU) are skipped automatically. `python run_bench.py --list` shows what was found.
 
@@ -38,8 +48,13 @@ python run_bench.py --backends jax-hand-gpu lightning.gpu+qjit --qubits 4 8 --ba
 python run_bench.py --precision f32                     # f32 where the backend supports it
 python run_bench.py --embed amplitude                   # reproduce the AmplitudeEmbedding path
 python run_bench.py --threads 8                         # pin OMP_NUM_THREADS for lightning
+python run_bench.py --circuit owner-mri                 # the paper's circuits
 python summarize.py results/<timestamp>                 # markdown tables + throughput.png
+python compare.py results/<a> results/<b> ...           # peregrin vs the best other backend, per cell
+sweeps/cpu.sh                                           # the full CPU sweep behind RESULTS.md
 ```
+
+peregrin needs a Rust toolchain to build: `pip install maturin && (cd crates/python && maturin develop --release)`.
 
 ## Methodology
 
@@ -68,13 +83,15 @@ python summarize.py results/<timestamp>                 # markdown tables + thro
 2. **qulacs runs each circuit twice.** <X_i> and <Z_i> on the same wire don't commute, so
    PennyLane splits the tape. That is real plugin behavior and stays in the numbers, but it is
    worth one sentence in the paper.
-3. **`qjit` + `catalyst.vmap` was slower than plain lightning.qubit** on CPU (about 140 µs per
-   2-qubit circuit), so the per-circuit cost in Catalyst's batch loop dominates at this size.
-   Worth re-checking on the GPU box and against newer Catalyst releases before claiming it.
+3. **`qjit` + `catalyst.vmap` vs plain lightning.qubit depends on the machine.** On the
+   handoff's Xeon, qjit was slower (about 140 µs per 2-qubit circuit). On the i5-6300U laptop
+   (RESULTS.md) it is 1.2 to 5.4x faster in 66 of 68 cells, and slightly slower only at n=8,
+   B=100k. Both are far
+   behind the batched simulators, so this does not change any conclusion.
 
 ## Precision notes
 
-`--precision f32` applies to the JAX backends (complex64) and plain lightning (`c_dtype=complex64`).
+`--precision f32` applies to the JAX backends (complex64), peregrin, and plain lightning (`c_dtype=complex64`).
 Catalyst and qulacs run f64 regardless; each result row records `precision_effective`.
 For the headline comparison against the planned f32 Rust/CUDA device, report both an f32 table
 and an f64 table rather than mixing them.
