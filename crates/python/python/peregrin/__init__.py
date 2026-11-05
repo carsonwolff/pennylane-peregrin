@@ -9,7 +9,7 @@
     })
     out = c.execute(X)          # X: (batch, d_x); out: (batch, n_outputs)
 
-As a PennyLane device: qml.device("peregrin", wires=n) (see peregrin.device).
+As a PennyLane device: qml.device("peregrin.cpu", wires=n) (see peregrin.device).
 
 Params are ["x", col, scale] (column of the per-circuit inputs), ["w", idx, scale] (shared
 weight) or ["c", value]. Wire 0 is the most significant bit, as in PennyLane.

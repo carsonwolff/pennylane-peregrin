@@ -252,7 +252,7 @@ def build_peregrin_qnode(wl: Workload, precision):
     import pennylane as qml
 
     threads = int(os.environ.get("OMP_NUM_THREADS") or 0) or None
-    dev = qml.device("peregrin", wires=wl.n_qubits, precision=precision, threads=threads)
+    dev = qml.device("peregrin.cpu", wires=wl.n_qubits, precision=precision, threads=threads)
 
     @qml.qnode(dev, interface=None, diff_method=None)
     def qnode(f, w):

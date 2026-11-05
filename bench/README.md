@@ -31,7 +31,8 @@ default.qubit to 1e-12.
 | `lightning.qubit` / `lightning.gpu` | plain QNode; broadcasting is split into one tape per circuit (the paper's setup) |
 | `lightning.qubit+qjit` / `lightning.gpu+qjit` | Catalyst `qjit` + `catalyst.vmap` over the batch |
 | `qulacs` / `qulacs-gpu` | `qulacs.simulator` via pennylane-qulacs |
-| `peregrin-cpu` | peregrin (`../crates/`) through its Python bindings; threads follow `--threads` |
+| `peregrin-cpu` | peregrin's direct Python API (`peregrin.Circuit`, no PennyLane), running the circuit's gate-list template like `jax-hand`; threads follow `--threads` |
+| `peregrin-qnode` | the `peregrin.cpu` PennyLane device: the circuit's PennyLane body in a broadcast QNode, timed like `default.qubit` |
 
 Unavailable backends (missing package, no GPU) are skipped automatically. `python run_bench.py --list` shows what was found.
 

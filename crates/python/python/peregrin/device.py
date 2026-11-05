@@ -1,10 +1,10 @@
-"""PennyLane device: ``qml.device("peregrin", wires=n)``.
+"""PennyLane device: ``qml.device("peregrin.cpu", wires=n)``.
 
 A broadcast tape (parameters with a leading batch dimension, or a batched StatePrep or
 AmplitudeEmbedding) runs as one peregrin call over the whole batch. That is the case this
 device is built for: quanvolution, where one circuit runs once per image patch.
 
-    dev = qml.device("peregrin", wires=4)
+    dev = qml.device("peregrin.cpu", wires=4)
 
     @qml.qnode(dev)
     def circuit(patches, weights):            # patches: (batch, 4)
@@ -253,10 +253,10 @@ class _Lowered:
 
 @simulator_tracking
 @single_tape_support
-class PeregrinDevice(Device):
+class PeregrinCPU(Device):
     """Batched state-vector simulator for many small circuits (see module docs)."""
 
-    name = "peregrin"
+    name = "peregrin.cpu"
     _CACHE_SIZE = 64
 
     def __init__(self, wires=None, shots=None, precision="f64", threads=None):

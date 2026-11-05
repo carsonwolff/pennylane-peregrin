@@ -154,10 +154,10 @@ Per-backend tables for each configuration are in the `summary.md` files of the
 - **Vectorized trig.** Per-circuit angles go through a branch-free sin/cos that runs across
   lanes, accurate to about 1 ulp, with a library fallback for |x| >= 1e5.
 
-## peregrin as a PennyLane device (`peregrin-qnode`)
+## peregrin as a PennyLane device (`peregrin.cpu`, harness label `peregrin-qnode`)
 
 `peregrin-qnode` runs each circuit's PennyLane body in a broadcast QNode on
-`qml.device("peregrin")`, the same way the `default.qubit` backend is timed. Tape
+`qml.device("peregrin.cpu")` (measured when it was still registered as `"peregrin"`; same code), the same way the `default.qubit` backend is timed. Tape
 construction, preprocessing, decomposition and result assembly are all inside the timed
 region. Folders: `results/20261105-1037-*-qnode`. All 68 rows passed the correctness check
 (worst f64 error 3.1e-15).

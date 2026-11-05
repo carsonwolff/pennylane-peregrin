@@ -20,7 +20,7 @@ classifiers = [
 pennylane = ["pennylane>=0.38"]
 
 [project.entry-points."pennylane.plugins"]
-peregrin = "peregrin.device:PeregrinDevice"
+"peregrin.cpu" = "peregrin.device:PeregrinCPU"
 
 [tool.maturin]
 python-source = "python"

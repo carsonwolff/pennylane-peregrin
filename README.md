@@ -8,7 +8,7 @@ call. The core is written in Rust and runs one batch-first call: a circuit templ
 On a 2-core laptop CPU it beats every PennyLane CPU backend we measured, including a
 hand-written batched JAX simulator, at every qubit count and batch size we tested (68 of 68
 cells). The smallest margin is 1.34x, and at B=100k it is 2.1x to 15.7x. Outputs match
-default.qubit to 1e-12 in f64. Used through PennyLane as `qml.device("peregrin")`, it is
+default.qubit to 1e-12 in f64. Used through PennyLane as `qml.device("peregrin.cpu")`, it is
 faster than every other PennyLane device in all 68 cells (5.3x to 73x at B=100k). Full numbers
 and methodology: [bench/RESULTS.md](bench/RESULTS.md).
 
@@ -38,7 +38,7 @@ cd crates/python && maturin develop --release
 import numpy as np
 import pennylane as qml
 
-dev = qml.device("peregrin", wires=4)          # precision="f32" and threads=N are optional
+dev = qml.device("peregrin.cpu", wires=4)          # precision="f32" and threads=N are optional
 
 @qml.qnode(dev)
 def quanv(patches, weights):                   # patches: (batch, 4), one row per image patch

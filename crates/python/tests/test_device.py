@@ -9,7 +9,7 @@ TOL = 1e-12
 
 def both(n, fn, **kw):
     """The same QNode body on peregrin and default.qubit."""
-    return (qml.QNode(fn, qml.device("peregrin", wires=n, **kw)), qml.QNode(fn, qml.device("default.qubit", wires=n)))
+    return (qml.QNode(fn, qml.device("peregrin.cpu", wires=n, **kw)), qml.QNode(fn, qml.device("default.qubit", wires=n)))
 
 
 def close(a, b, tol=TOL):
@@ -24,8 +24,8 @@ def close(a, b, tol=TOL):
 
 
 def test_device_loads_by_name():
-    dev = qml.device("peregrin", wires=3)
-    assert dev.name == "peregrin" and len(dev.wires) == 3
+    dev = qml.device("peregrin.cpu", wires=3)
+    assert dev.name == "peregrin.cpu" and len(dev.wires) == 3
 
 
 GATES_1 = [qml.Hadamard, qml.PauliX, qml.PauliY, qml.PauliZ, qml.S, qml.T, qml.SX, qml.adjoint(qml.S), qml.adjoint(qml.T)]
@@ -134,9 +134,9 @@ def test_wire_labels_and_no_device_wires():
         qml.CNOT(wires=["a", 7])
         return qml.expval(qml.Z(7)), qml.probs(wires=["a"])
 
-    pg, dq = (qml.QNode(body, qml.device("peregrin", wires=["a", 7])), qml.QNode(body, qml.device("default.qubit", wires=["a", 7])))
+    pg, dq = (qml.QNode(body, qml.device("peregrin.cpu", wires=["a", 7])), qml.QNode(body, qml.device("default.qubit", wires=["a", 7])))
     close(pg(np.array([0.1, 0.2])), dq(np.array([0.1, 0.2])))
-    pg, dq = (qml.QNode(body, qml.device("peregrin")), qml.QNode(body, qml.device("default.qubit")))
+    pg, dq = (qml.QNode(body, qml.device("peregrin.cpu")), qml.QNode(body, qml.device("default.qubit")))
     close(pg(0.4), dq(0.4))
 
 
@@ -148,7 +148,7 @@ def test_gradients_with_parameter_shift():
         qml.Rot(w[1], w[2], x, wires=1)
         return qml.expval(qml.Z(1) @ qml.X(0) + 0.5 * qml.Y(1))
 
-    pg = qml.QNode(body, qml.device("peregrin", wires=2))
+    pg = qml.QNode(body, qml.device("peregrin.cpu", wires=2))
     dq = qml.QNode(body, qml.device("default.qubit", wires=2), diff_method="parameter-shift")
     x = pnp.array(0.3, requires_grad=True)
     w = pnp.array([0.1, -0.7, 1.2], requires_grad=True)
@@ -164,7 +164,7 @@ def test_jax_interface():
         qml.CNOT(wires=[0, 1])
         return qml.expval(qml.Z(1))
 
-    pg = qml.QNode(body, qml.device("peregrin", wires=2), interface="jax")
+    pg = qml.QNode(body, qml.device("peregrin.cpu", wires=2), interface="jax")
     assert abs(float(pg(jax.numpy.array(0.3))) - np.cos(0.3)) < TOL
     assert abs(float(jax.grad(pg)(jax.numpy.array(0.3))) + np.sin(0.3)) < 1e-10
 
@@ -172,7 +172,7 @@ def test_jax_interface():
 def test_f32_precision():
     rng = np.random.default_rng(2)
     w = rng.uniform(-np.pi, np.pi, 3)
-    pg = qml.QNode(kitchen_sink, qml.device("peregrin", wires=4, precision="f32"))
+    pg = qml.QNode(kitchen_sink, qml.device("peregrin.cpu", wires=4, precision="f32"))
     dq = qml.QNode(kitchen_sink, qml.device("default.qubit", wires=4))
     xb = rng.uniform(-np.pi, np.pi, (20, 4))
     close(pg(xb, w), dq(xb, w), 1e-4)
@@ -184,7 +184,7 @@ def test_shots_raise_and_matrix_observables_work():
         return qml.sample(qml.Z(0))
 
     with pytest.raises(Exception, match="shots|sampl|analytic"):
-        qml.set_shots(qml.QNode(shots, qml.device("peregrin", wires=1)), shots=10)()
+        qml.set_shots(qml.QNode(shots, qml.device("peregrin.cpu", wires=1)), shots=10)()
 
     def mats(v):
         qml.RY(v, wires=0)
@@ -200,7 +200,7 @@ def test_shots_raise_and_matrix_observables_work():
 
 
 def test_cache_reuses_circuits_across_weight_changes():
-    dev = qml.device("peregrin", wires=2)
+    dev = qml.device("peregrin.cpu", wires=2)
 
     @qml.qnode(dev)
     def f(w):

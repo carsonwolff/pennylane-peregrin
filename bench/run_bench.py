@@ -43,7 +43,7 @@ REQUIRES = {  # import names or "device:<pennylane device>" needed per backend
     "qulacs": ["device:qulacs.simulator", "qulacs"],
     "qulacs-gpu": ["device:qulacs.simulator", "qulacs"],
     "peregrin-cpu": ["peregrin"],
-    "peregrin-qnode": ["device:peregrin"],
+    "peregrin-qnode": ["device:peregrin.cpu"],
 }
 
 
