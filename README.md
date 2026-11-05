@@ -1,97 +1,100 @@
-# qbench: batched small-circuit benchmark for PennyLane backends
+# peregrin
 
-Measures throughput (circuits/s) for MRI-style patch preprocessing: one 2 to 8 qubit
-circuit per image patch, run in batches of 100 to 100,000+.
+A fast simulator for large batches of small quantum circuits (1 to 10 qubits), built for
+quanvolutional preprocessing: one circuit per image patch, hundreds of thousands of patches per
+call. The core is written in Rust and runs one batch-first call: a circuit template, a
+`(batch, d_x)` array of per-circuit inputs, and shared weights, giving `(batch, n_outputs)`.
 
-Circuits (`--circuit`, see `circuits.py`):
+On a 2-core laptop CPU it beats every PennyLane CPU backend we measured, including a
+hand-written batched JAX simulator, at every qubit count and batch size we tested (68 of 68
+cells). The smallest margin is 1.34x, and at B=100k it is 2.1x to 15.7x. Outputs match
+default.qubit to 1e-12 in f64. Full numbers and methodology: [bench/RESULTS.md](bench/RESULTS.md).
 
-| name | qubits | what it is |
-|---|---|---|
-| `generic` (default) | 2, 4, 6, 8 | the original qbench circuit: amplitude-load a 2^n-pixel patch, `n_layers` x (RY, RZ on every qubit, CNOT ring), <Z_i> and <X_i> on every qubit |
-| `owner-mri` | 2, 4 | the paper's circuits, copied from `parallel_quantum_processing.py`; per-patch angles from patch statistics |
-| `pennylane-demo` | 4 | the PennyLane quanvolution demo: RY(pi x), `RandomLayers` (seed 42), <Z_i> |
-| `angle-trainable` | 4 | RY(x), trainable RX, open CNOT chain, <Z_i> (ResQuNNs) |
-| `amp-sel` | 5 | amplitude embedding, 3 x (RX RY RZ, open CNOT chain), <Z_i> |
+Status: CPU core and Python bindings work. A PennyLane device (`qml.device("peregrin", ...)`)
+and a GPU backend are next.
 
-Each circuit has a PennyLane body (what the QNode backends run) and a gate-list template (what
-`jax-hand` and `peregrin` run). `tests/test_circuits.py` checks every template against
-default.qubit to 1e-12.
+## Layout
 
-## Backends
-
-| name | what it is |
+| path | what it is |
 |---|---|
-| `default.qubit` | numpy, native parameter broadcasting, no jit. Also the correctness reference. |
-| `dq-jax-cpu` / `dq-jax-gpu` | default.qubit + broadcasting + `jax.jit` |
-| `jax-hand-cpu` / `jax-hand-gpu` | hand-written batched state-vector sim, one `jax.jit` for the whole batch |
-| `lightning.qubit` / `lightning.gpu` | plain QNode; broadcasting is split into one tape per circuit (the paper's setup) |
-| `lightning.qubit+qjit` / `lightning.gpu+qjit` | Catalyst `qjit` + `catalyst.vmap` over the batch |
-| `qulacs` / `qulacs-gpu` | `qulacs.simulator` via pennylane-qulacs |
-| `peregrin-cpu` | this project's Rust core (`crates/`) through its Python bindings; threads follow `--threads` |
+| `crates/core` | `peregrin-core`, the Rust simulator |
+| `crates/python` | `pennylane-peregrin`, the Python package (PyO3 + maturin), imported as `peregrin` |
+| `bench/` | qbench, the benchmark harness that compares peregrin with other PennyLane backends; see [bench/README.md](bench/README.md) |
 
-Unavailable backends (missing package, no GPU) are skipped automatically. `python run_bench.py --list` shows what was found.
+## Install (from source)
 
-## Install
+Needs a Rust toolchain ([rustup.rs](https://rustup.rs)) and Python 3.9+.
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-# GPU box, additionally:
-pip install -r requirements-gpu.txt
+pip install maturin
+cd crates/python && maturin develop --release
 ```
 
-## Run
+## Use from Python
+
+```python
+import numpy as np
+import peregrin
+
+# RY(x0) on wire 0, then CNOT(0, 1), then <Z1>; wire 0 is the most significant bit, as in PennyLane.
+c = peregrin.Circuit({
+    "n_qubits": 2,
+    "ops": [
+        {"name": "RY", "wires": [0], "params": [["x", 0, 1.0]]},
+        {"name": "CNOT", "wires": [0, 1]},
+    ],
+    "measurements": [{"type": "expval", "word": [[1, "Z"]]}],
+})
+X = np.random.uniform(0, np.pi, (100_000, 1))
+out = c.execute(X)              # shape (100000, 1), float64; float32 inputs give float32
+peregrin.set_num_threads(4)     # optional; default is one thread per logical CPU
+```
+
+A param is `["x", col, scale]` (column `col` of each circuit's inputs, times `scale`),
+`["w", idx, scale]` (shared weight `idx`, passed as `execute(X, weights)`) or `["c", value]`.
+`"state_prep": {"kind": "real", "start": 0}` loads each circuit's state from its input row,
+starting at column `start` (2^n real amplitudes, already normalized).
+
+Measurements are `expval` and `var` of Pauli words (`[[wire, "X" | "Y" | "Z"], ...]`) and `probs` on
+a list of wires. Gates: PauliX/Y/Z, Hadamard, S, Sdg, T, Tdg, SX, RX, RY, RZ, PhaseShift, Rot, U3,
+CNOT, CY, CZ, SWAP, CRX, CRY, CRZ, ControlledPhaseShift, IsingXX/YY/ZZ, MultiRZ, PauliRot,
+QubitUnitary (1 or 2 wires). The full spec is in
+[crates/core/src/json.rs](crates/core/src/json.rs).
+
+## Use from Rust
+
+```rust
+use peregrin_core::{Circuit, Gate, Param, Pauli};
+
+let mut c = Circuit::new(2);
+c.gate(Gate::RY(Param::input(0)), &[0]).gate(Gate::CNOT, &[0, 1]);
+c.expval(&[(1, Pauli::Z)]);
+let out = peregrin_core::execute::<f64>(&c, batch, &inputs, &[])?;
+```
+
+`execute` also comes in f32. `final_states` returns state vectors, and `sample` draws shots
+with a seed per circuit, so results don't depend on the thread count.
+
+## How it is fast
+
+- **Tiles of 8 circuits.** The core stores 8 circuits' states side by side (struct-of-arrays),
+  so each gate runs as one SIMD loop across circuits. AVX2 is picked at runtime.
+- **Free permutations.** CNOT and SWAP chains move no data. The core tracks which row holds
+  which amplitude instead.
+- **Real-state tracking.** While the state is known to be real, the imaginary half of the work
+  is skipped.
+- **Gate fusion.** Gates on the same wire are fused, and matrices that use only shared weights
+  are computed once per call.
+- **Vectorized sin/cos.** Per-circuit angles use a vectorized sin/cos.
+
+## Tests
 
 ```bash
-python run_bench.py                                      # all available backends, n=2,4,6,8, B=100,1k,10k
-python run_bench.py --backends jax-hand-gpu lightning.gpu+qjit --qubits 4 8 --batches 1000 100000
-python run_bench.py --precision f32                     # f32 where the backend supports it
-python run_bench.py --embed amplitude                   # reproduce the AmplitudeEmbedding path
-python run_bench.py --threads 8                         # pin OMP_NUM_THREADS for lightning
-python run_bench.py --circuit owner-mri                 # the paper's circuits
-python summarize.py results/<timestamp>                 # markdown tables + throughput.png
-python compare.py results/<a> results/<b> ...           # peregrin vs the best other backend, per cell
-sweeps/cpu.sh                                           # the full CPU sweep behind RESULTS.md
+cargo test --release                              # golden outputs from default.qubit, unit tests
+cd bench && ../.venv/bin/python tests/test_circuits.py
 ```
 
-peregrin needs a Rust toolchain to build: `pip install maturin && (cd crates/python && maturin develop --release)`.
+## License
 
-## Methodology
-
-- **Isolation.** Every (backend, n, batch) case runs in a fresh subprocess, so JIT caches, GPU
-  contexts, thread pools and memory never leak between cases, and a crash or hang in one backend
-  is recorded instead of killing the sweep.
-- **What is timed.** numpy in, numpy out, including host/device copies, because that is what a
-  preprocessing pipeline pays. The first call (tracing, JIT, qjit compile) is reported separately
-  as `first_call_s`; throughput uses the median of the steady-state reps.
-- **Correctness.** Before the sweep, default.qubit in f64 computes reference outputs for the first
-  64 circuits per qubit count. Every case is compared against it (tolerance 1e-9 in f64, 1e-4 in
-  f32) and mismatches are flagged in both the console and the summary. A fast wrong answer never
-  looks like a win.
-- **Budgets.** `--budget` caps the timed reps per case (min 3); `--timeout` hard-kills a case.
-  Larger batches are skipped when a smaller one projects past the timeout.
-- **Provenance.** `env.json` records CPU, GPU (nvidia-smi), package versions, thread env vars,
-  CLI args and git commit.
-
-## Things the harness already caught
-
-1. **`AmplitudeEmbedding` is not free everywhere.** default.qubit and plain lightning load the
-   state directly, but under `qjit` and on qulacs it decomposes into a Möttönen cascade
-   (about 520 gates at 8 qubits). With `normalize=False` and pre-normalized rows, `qml.StatePrep`
-   is mathematically identical and loads natively everywhere, so it is the default here.
-   `--embed amplitude` keeps the old path so you can quantify what it cost.
-2. **qulacs runs each circuit twice.** <X_i> and <Z_i> on the same wire don't commute, so
-   PennyLane splits the tape. That is real plugin behavior and stays in the numbers, but it is
-   worth one sentence in the paper.
-3. **`qjit` + `catalyst.vmap` vs plain lightning.qubit depends on the machine.** On the
-   handoff's Xeon, qjit was slower (about 140 µs per 2-qubit circuit). On the i5-6300U laptop
-   (RESULTS.md) it is 1.2 to 5.4x faster in 66 of 68 cells, and slightly slower only at n=8,
-   B=100k. Both are far
-   behind the batched simulators, so this does not change any conclusion.
-
-## Precision notes
-
-`--precision f32` applies to the JAX backends (complex64), peregrin, and plain lightning (`c_dtype=complex64`).
-Catalyst and qulacs run f64 regardless; each result row records `precision_effective`.
-For the headline comparison against the planned f32 Rust/CUDA device, report both an f32 table
-and an f64 table rather than mixing them.
+MIT OR Apache-2.0, at your option.

@@ -11,7 +11,7 @@ Circuit spec:
             "word": "XZ" (PauliRot only), "matrix": [[re, im], ...] (QubitUnitary only)}],
    "measurements": [{"type": "expval" | "var", "word": [[wire, "X"], ...]} | {"type": "probs", "wires": [...]}]}
 
-Run: .venv/bin/python tests/export_golden.py
+Run from bench/: ../.venv/bin/python tests/export_golden.py
 """
 import json
 import os
@@ -28,7 +28,7 @@ import pennylane as qml  # noqa: E402
 import circuits  # noqa: E402
 from workload import Workload  # noqa: E402
 
-OUT = ROOT / "crates" / "core" / "tests" / "golden"
+OUT = ROOT.parent / "crates" / "core" / "tests" / "golden"
 
 FIXED_1Q = ["PauliX", "PauliY", "PauliZ", "Hadamard", "S", "Sdg", "T", "Tdg", "SX"]
 PARAM_1Q = {"RX": 1, "RY": 1, "RZ": 1, "PhaseShift": 1, "Rot": 3, "U3": 3}

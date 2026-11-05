@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # Phase 1 CPU sweep on the local machine. Every run lands in results/<tag>-<label>/.
 # Budget and timeout match the handoff's reference run (results/stateprep).
+# Run from anywhere; paths are relative to bench/.
 # Usage: [BACKENDS="a b"] [LABEL=suffix] sweeps/cpu.sh [threads]
 #   threads defaults to the physical core count; BACKENDS limits the run to those backends.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-PY=${PY:-.venv/bin/python}
+PY=${PY:-../.venv/bin/python}
 T=${1:-$(lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l)}
 TAG=$(date +%Y%m%d-%H%M)
 B="100 1000 10000 100000"
