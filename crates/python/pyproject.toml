@@ -1,23 +1,36 @@
 [build-system]
-requires = ["maturin>=1.5,<2"]
+requires = ["maturin>=1.9,<2"]
 build-backend = "maturin"
 
 [project]
 name = "pennylane-peregrin"
-description = "Fast batched CPU simulation of many small circuits, with a PennyLane device"
-requires-python = ">=3.9"
-license = { text = "MIT OR Apache-2.0" }
+description = "Fast CPU simulation of large batches of small quantum circuits, with a PennyLane device (peregrin.cpu)"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 authors = [{ name = "Carson Wolff" }]
-dependencies = ["numpy>=1.21"]
+keywords = ["quantum", "pennylane", "simulator", "quanvolution", "quantum machine learning"]
+dependencies = ["numpy>=1.21", "pennylane>=0.42"]
 dynamic = ["version"]
 classifiers = [
-    "Programming Language :: Rust",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Rust",
     "Topic :: Scientific/Engineering :: Physics",
 ]
 
+[project.urls]
+Repository = "https://github.com/carsonwolff/pennylane-peregrin"
+Benchmarks = "https://github.com/carsonwolff/pennylane-peregrin/blob/main/bench/RESULTS.md"
+
 [project.optional-dependencies]
-pennylane = ["pennylane>=0.38"]
+test = ["pytest"]
 
 [project.entry-points."pennylane.plugins"]
 "peregrin.cpu" = "peregrin.device:PeregrinCPU"

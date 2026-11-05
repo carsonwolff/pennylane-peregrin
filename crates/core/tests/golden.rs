@@ -9,7 +9,8 @@ fn check(file: &str) {
     assert!(!cases.is_empty());
     let mut worst = (0.0f64, String::new());
     for c in &cases {
-        let out = execute::<f64>(&c.circuit, c.batch, &c.inputs, &c.weights).unwrap_or_else(|e| panic!("{}: {e}", c.name));
+        let out =
+            execute::<f64>(&c.circuit, c.batch, &c.inputs, &c.weights).unwrap_or_else(|e| panic!("{}: {e}", c.name));
         assert_eq!(out.len(), c.expected.len(), "{}: output width", c.name);
         let e_out = out.iter().zip(&c.expected).map(|(a, b)| (a - b).abs()).fold(0.0, f64::max);
 

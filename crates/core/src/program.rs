@@ -106,10 +106,21 @@ pub(crate) enum Stage<T> {
 
 #[derive(Clone, Debug)]
 pub(crate) enum MeasPlan {
-    Expval { flip: usize, zy: usize, ny: u8 },
-    Var { flip: usize, zy: usize, ny: u8 },
+    Expval {
+        flip: usize,
+        zy: usize,
+        ny: u8,
+    },
+    Var {
+        flip: usize,
+        zy: usize,
+        ny: u8,
+    },
     /// Output slot for each basis index.
-    Probs { map: Box<[u32]>, width: usize },
+    Probs {
+        map: Box<[u32]>,
+        width: usize,
+    },
 }
 
 pub(crate) struct Program<T> {
@@ -364,7 +375,8 @@ impl<T: Real> Program<T> {
                             let idx = [i, i | m1, i | m0, i | m0 | m1];
                             let v = idx.map(|k| psi[k]);
                             for r in 0..4 {
-                                psi[idx[r]] = m[4 * r] * v[0] + m[4 * r + 1] * v[1] + m[4 * r + 2] * v[2] + m[4 * r + 3] * v[3];
+                                psi[idx[r]] =
+                                    m[4 * r] * v[0] + m[4 * r + 1] * v[1] + m[4 * r + 2] * v[2] + m[4 * r + 3] * v[3];
                             }
                         }
                     }

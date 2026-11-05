@@ -81,10 +81,20 @@ enum TStage<T> {
 
 enum TMeas<T> {
     /// sum over rows of coef * |psi|^2 (Z-type Pauli words).
-    Diag { coef: Box<[T]>, var: bool },
+    Diag {
+        coef: Box<[T]>,
+        var: bool,
+    },
     /// sum over row pairs of coef * Re or Im of conj(psi_j) psi_i (words with X or Y).
-    Off { pairs: Box<[(u32, u32, T)]>, use_im: bool, var: bool },
-    Probs { slot: Box<[u32]>, width: usize },
+    Off {
+        pairs: Box<[(u32, u32, T)]>,
+        use_im: bool,
+        var: bool,
+    },
+    Probs {
+        slot: Box<[u32]>,
+        width: usize,
+    },
 }
 
 pub(crate) struct TileProgram<'p, T> {
@@ -434,35 +444,40 @@ fn half_angle<'x, T: Real>(theta: &Val<T>, row: &dyn Fn(usize) -> &'x [T]) -> (L
 // sin/cos on lanes: reduce by multiples of pi/2 (three-part constant, from fdlibm), then the
 // Cephes minimax polynomials on [-pi/4, pi/4]. About 1 ulp in f64. Written without branches
 // or integer conversions so the loop vectorizes; lanes with |x| >= 1e5 (or NaN) are redone
-// with the library functions.
-const PIO2_1: f64 = 1.570_796_326_734_125_614_17e+00;
-const PIO2_2: f64 = 6.077_100_506_303_965_976_60e-11;
-const PIO2_3: f64 = 2.022_266_248_711_166_455_80e-21;
-const SIN_P: [f64; 6] = [
-    1.589_623_015_765_465_680_60e-10,
-    -2.505_074_776_285_780_728_66e-8,
-    2.755_731_362_138_572_452_13e-6,
-    -1.984_126_982_958_953_859_96e-4,
-    8.333_333_333_322_118_588_78e-3,
-    -1.666_666_666_666_663_072_95e-1,
-];
-const COS_P: [f64; 6] = [
-    -1.135_853_652_138_768_173_00e-11,
-    2.087_570_084_197_473_167_78e-9,
-    -2.755_731_417_929_673_881_12e-7,
-    2.480_158_728_885_170_453_48e-5,
-    -1.388_888_888_887_305_641_16e-3,
-    4.166_666_666_666_659_292_18e-2,
-];
+// with the library functions. The constants are the published digits, kept as written.
+#[allow(clippy::excessive_precision)]
+mod trig_consts {
+    pub(super) const PIO2_1: f64 = 1.570_796_326_734_125_614_17e+00;
+    pub(super) const PIO2_2: f64 = 6.077_100_506_303_965_976_60e-11;
+    pub(super) const PIO2_3: f64 = 2.022_266_248_711_166_455_80e-21;
+    pub(super) const SIN_P: [f64; 6] = [
+        1.589_623_015_765_465_680_60e-10,
+        -2.505_074_776_285_780_728_66e-8,
+        2.755_731_362_138_572_452_13e-6,
+        -1.984_126_982_958_953_859_96e-4,
+        8.333_333_333_322_118_588_78e-3,
+        -1.666_666_666_666_663_072_95e-1,
+    ];
+    pub(super) const COS_P: [f64; 6] = [
+        -1.135_853_652_138_768_173_00e-11,
+        2.087_570_084_197_473_167_78e-9,
+        -2.755_731_417_929_673_881_12e-7,
+        2.480_158_728_885_170_453_48e-5,
+        -1.388_888_888_887_305_641_16e-3,
+        4.166_666_666_666_659_292_18e-2,
+    ];
+}
+use trig_consts::{COS_P, PIO2_1, PIO2_2, PIO2_3, SIN_P};
 
 #[inline(always)]
+#[allow(clippy::neg_cmp_op_on_partial_ord)]
 pub(crate) fn sin_cos_lanes<T: Real>(x: &L<T>) -> (L<T>, L<T>) {
     const MAGIC: f64 = 6_755_399_441_055_744.0; // 1.5 * 2^52: adding it rounds to an integer
     let (mut s, mut c) = ([T::zero(); W], [T::zero(); W]);
     let mut big = false;
     for l in 0..W {
         let v = x[l].as_f64();
-        big |= !(v.abs() < 1e5);
+        big |= !(v.abs() < 1e5); // also true for NaN; one compare, so the loop stays vectorized
         let kf = v * std::f64::consts::FRAC_2_PI + MAGIC;
         let q = kf.to_bits(); // low bits hold k mod 2^32
         let k = kf - MAGIC;
@@ -535,10 +550,10 @@ fn mul_lanes<T: Real>(g: &LaneMat<T>, u: &LaneMat<T>) -> LaneMat<T> {
         let (a, b) = (2 * r, 2 * r + 1); // g[r][0], g[r][1]
         let (x, y) = (c, 2 + c); // u[0][c], u[1][c]
         for l in 0..W {
-            out.re[2 * r + c][l] = g.re[a][l] * u.re[x][l] - g.im[a][l] * u.im[x][l] + g.re[b][l] * u.re[y][l]
-                - g.im[b][l] * u.im[y][l];
-            out.im[2 * r + c][l] = g.re[a][l] * u.im[x][l] + g.im[a][l] * u.re[x][l] + g.re[b][l] * u.im[y][l]
-                + g.im[b][l] * u.re[y][l];
+            out.re[2 * r + c][l] =
+                g.re[a][l] * u.re[x][l] - g.im[a][l] * u.im[x][l] + g.re[b][l] * u.re[y][l] - g.im[b][l] * u.im[y][l];
+            out.im[2 * r + c][l] =
+                g.re[a][l] * u.im[x][l] + g.im[a][l] * u.re[x][l] + g.re[b][l] * u.im[y][l] + g.im[b][l] * u.re[y][l];
         }
     }
     out

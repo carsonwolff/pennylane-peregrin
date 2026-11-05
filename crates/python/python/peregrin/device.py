@@ -40,7 +40,10 @@ from pennylane.devices.preprocess import (
 from pennylane.exceptions import DeviceError
 from pennylane.measurements import ExpectationMP, ProbabilityMP, StateMP, VarianceMP
 from pennylane.operation import StatePrepBase
-from pennylane.transforms.core import CompilePipeline
+try:
+    from pennylane.transforms.core import CompilePipeline
+except ImportError:  # PennyLane < 0.44 calls it TransformProgram
+    from pennylane.transforms.core import TransformProgram as CompilePipeline
 
 from . import Circuit, set_num_threads
 
@@ -282,7 +285,7 @@ class PeregrinCPU(Device):
         program = CompilePipeline()
         program.add_transform(validate_device_wires, self.wires, name=self.name)
         program.add_transform(no_sampling, name=self.name)
-        program.add_transform(decompose, stopping_condition=_stopping_condition, device_wires=self.wires,
+        program.add_transform(decompose, stopping_condition=_stopping_condition,
                               skip_initial_state_prep=True, name=self.name)
         program.add_transform(validate_measurements, analytic_measurements=_accepted_measurement, name=self.name)
         return program

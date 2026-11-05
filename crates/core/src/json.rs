@@ -81,7 +81,9 @@ impl Circuit {
                 Some(p) => arr(p, "params")?.iter().map(param).collect::<Result<Vec<_>>>()?,
                 None => vec![],
             };
-            let p = |i: usize| ps.get(i).copied().ok_or_else(|| Error(format!("circuit json: {name} needs {} params", i + 1)));
+            let p = |i: usize| {
+                ps.get(i).copied().ok_or_else(|| Error(format!("circuit json: {name} needs {} params", i + 1)))
+            };
             let gate = match name {
                 "PauliX" | "X" => Gate::PauliX,
                 "PauliY" | "Y" => Gate::PauliY,
@@ -111,7 +113,8 @@ impl Circuit {
                 "IsingZZ" => Gate::IsingZZ(p(0)?),
                 "MultiRZ" => Gate::MultiRZ(p(0)?),
                 "PauliRot" => {
-                    let word = op["word"].as_str().ok_or_else(|| Error("circuit json: PauliRot needs a word".into()))?;
+                    let word =
+                        op["word"].as_str().ok_or_else(|| Error("circuit json: PauliRot needs a word".into()))?;
                     let word = word.chars().map(|ch| pauli(&ch.to_string())).collect::<Result<Vec<_>>>()?;
                     Gate::PauliRot(p(0)?, word)
                 }
@@ -134,9 +137,9 @@ impl Circuit {
         }
         for m in arr(&spec["measurements"], "measurements")? {
             let meas = match m["type"].as_str() {
-                Some("probs") => {
-                    Measurement::Probs(arr(&m["wires"], "wires")?.iter().map(|w| idx(w, "wire")).collect::<Result<_>>()?)
-                }
+                Some("probs") => Measurement::Probs(
+                    arr(&m["wires"], "wires")?.iter().map(|w| idx(w, "wire")).collect::<Result<_>>()?,
+                ),
                 Some(t @ ("expval" | "var")) => {
                     let word = arr(&m["word"], "word")?
                         .iter()

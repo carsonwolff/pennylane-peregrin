@@ -40,7 +40,13 @@ pub fn execute<T: Real>(circuit: &Circuit, batch: usize, inputs: &[T], weights: 
 }
 
 /// [`execute`] into a caller-provided `(batch, n_outputs)` buffer.
-pub fn execute_into<T: Real>(circuit: &Circuit, batch: usize, inputs: &[T], weights: &[T], out: &mut [T]) -> Result<()> {
+pub fn execute_into<T: Real>(
+    circuit: &Circuit,
+    batch: usize,
+    inputs: &[T],
+    weights: &[T],
+    out: &mut [T],
+) -> Result<()> {
     let d_x = d_x_of(batch, inputs)?;
     let prog = Program::new(circuit, d_x, weights)?;
     let w = prog.n_out;
@@ -79,9 +85,7 @@ where
         return Ok(());
     }
     let rows = chunk_rows(batch);
-    out.par_chunks_mut(rows * w)
-        .zip(inputs.par_chunks(rows * d_x))
-        .for_each(|(dst, src)| run(src, dst));
+    out.par_chunks_mut(rows * w).zip(inputs.par_chunks(rows * d_x)).for_each(|(dst, src)| run(src, dst));
     Ok(())
 }
 
@@ -146,26 +150,23 @@ pub fn sample<T: Real>(
         (inputs, d_x)
     };
     let rows = chunk_rows(batch);
-    out.par_chunks_mut(rows * shots)
-        .zip(src.par_chunks(rows * dxe))
-        .enumerate()
-        .for_each(|(ci, (dst, xs))| {
-            let mut sc = Scratch::new(prog.dim);
-            let mut cum = vec![0.0f64; k];
-            for (r, (x, o)) in xs.chunks_exact(dxe).zip(dst.chunks_exact_mut(shots)).enumerate() {
-                prog.evolve(x, &mut sc);
-                Program::marginal(&sc.psi, &map, &mut cum);
-                let mut acc = 0.0;
-                for c in cum.iter_mut() {
-                    acc += *c;
-                    *c = acc;
-                }
-                let mut rng = SplitMix64::for_circuit(seed, (ci * rows + r) as u64);
-                for s in o.iter_mut() {
-                    let u = rng.next_f64() * acc;
-                    *s = cum.partition_point(|&c| c <= u).min(k - 1) as u32;
-                }
+    out.par_chunks_mut(rows * shots).zip(src.par_chunks(rows * dxe)).enumerate().for_each(|(ci, (dst, xs))| {
+        let mut sc = Scratch::new(prog.dim);
+        let mut cum = vec![0.0f64; k];
+        for (r, (x, o)) in xs.chunks_exact(dxe).zip(dst.chunks_exact_mut(shots)).enumerate() {
+            prog.evolve(x, &mut sc);
+            Program::marginal(&sc.psi, &map, &mut cum);
+            let mut acc = 0.0;
+            for c in cum.iter_mut() {
+                acc += *c;
+                *c = acc;
             }
-        });
+            let mut rng = SplitMix64::for_circuit(seed, (ci * rows + r) as u64);
+            for s in o.iter_mut() {
+                let u = rng.next_f64() * acc;
+                *s = cum.partition_point(|&c| c <= u).min(k - 1) as u32;
+            }
+        }
+    });
     Ok(out)
 }

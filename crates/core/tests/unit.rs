@@ -60,11 +60,13 @@ fn rot_and_u3_match_their_definitions() {
     let (a, b, d) = (0.3, 1.1, -0.8);
     for basis in 0..2 {
         let rot = run_from(1, basis, &[(Gate::Rot(k(a), k(b), k(d)), vec![0])]);
-        let seq = run_from(1, basis, &[(Gate::RZ(k(a)), vec![0]), (Gate::RY(k(b)), vec![0]), (Gate::RZ(k(d)), vec![0])]);
+        let seq =
+            run_from(1, basis, &[(Gate::RZ(k(a)), vec![0]), (Gate::RY(k(b)), vec![0]), (Gate::RZ(k(d)), vec![0])]);
         assert_state(&rot, &seq);
         // U3(theta, phi, delta) = e^{i(phi+delta)/2} RZ(phi) RY(theta) RZ(delta)
         let u3 = run_from(1, basis, &[(Gate::U3(k(b), k(a), k(d)), vec![0])]);
-        let seq = run_from(1, basis, &[(Gate::RZ(k(d)), vec![0]), (Gate::RY(k(b)), vec![0]), (Gate::RZ(k(a)), vec![0])]);
+        let seq =
+            run_from(1, basis, &[(Gate::RZ(k(d)), vec![0]), (Gate::RY(k(b)), vec![0]), (Gate::RZ(k(a)), vec![0])]);
         let g = C::from_polar(1., (a + d) / 2.);
         assert_state(&u3, &seq.iter().map(|z| z * g).collect::<Vec<_>>());
     }
@@ -81,10 +83,16 @@ fn two_qubit_known_values_and_wire_order() {
     assert_state(&run_from(2, 3, &[(Gate::CZ, vec![0, 1])]), &e(3).iter().map(|z| -z).collect::<Vec<_>>());
     assert_state(&run_from(2, 2, &[(Gate::CY, vec![0, 1])]), &[c(0., 0.), c(0., 0.), c(0., 0.), c(0., 1.)]);
     // IsingXX(pi) = -i XX
-    assert_state(&run_from(2, 0, &[(Gate::IsingXX(k(PI)), vec![0, 1])]), &[c(0., 0.), c(0., 0.), c(0., 0.), c(0., -1.)]);
+    assert_state(
+        &run_from(2, 0, &[(Gate::IsingXX(k(PI)), vec![0, 1])]),
+        &[c(0., 0.), c(0., 0.), c(0., 0.), c(0., -1.)],
+    );
     // ControlledPhaseShift only touches |11>
     let t = 0.4;
-    assert_state(&run_from(2, 3, &[(Gate::ControlledPhaseShift(k(t)), vec![0, 1])]), &[c(0., 0.), c(0., 0.), c(0., 0.), C::from_polar(1., t)]);
+    assert_state(
+        &run_from(2, 3, &[(Gate::ControlledPhaseShift(k(t)), vec![0, 1])]),
+        &[c(0., 0.), c(0., 0.), c(0., 0.), C::from_polar(1., t)],
+    );
     assert_state(&run_from(2, 2, &[(Gate::ControlledPhaseShift(k(t)), vec![0, 1])]), &e(2));
     // CRX(pi) with control set acts as -iX on the target
     assert_state(&run_from(2, 2, &[(Gate::CRX(k(PI)), vec![0, 1])]), &[c(0., 0.), c(0., 0.), c(0., 0.), c(0., -1.)]);
@@ -119,7 +127,11 @@ fn random_circuit(rng: &mut Rng, n: usize, n_ops: usize) -> Circuit {
     for _ in 0..n_ops {
         let a = rng.below(n);
         let b = (a + 1 + rng.below(n.max(2) - 1)) % n;
-        let p = if rng.below(2) == 0 { Param::Input { col: (1 << n) + rng.below(3), scale: 1.0 } } else { Param::weight(rng.below(4)) };
+        let p = if rng.below(2) == 0 {
+            Param::Input { col: (1 << n) + rng.below(3), scale: 1.0 }
+        } else {
+            Param::weight(rng.below(4))
+        };
         let pick = if n == 1 { rng.below(6) } else { rng.below(13) };
         let (g, w) = match pick {
             0 => (Gate::Hadamard, vec![a]),
@@ -203,8 +215,12 @@ fn results_do_not_depend_on_thread_count() {
     let x = random_inputs(&mut rng, n, batch);
     let w = [0.1, 0.2, 0.3, 0.4];
     let pool = |t| rayon::ThreadPoolBuilder::new().num_threads(t).build().unwrap();
-    let one = pool(1).install(|| (execute::<f64>(&circ, batch, &x, &w).unwrap(), sample::<f64>(&circ, batch, &x, &w, &[0, 3], 50, 9).unwrap()));
-    let many = pool(4).install(|| (execute::<f64>(&circ, batch, &x, &w).unwrap(), sample::<f64>(&circ, batch, &x, &w, &[0, 3], 50, 9).unwrap()));
+    let one = pool(1).install(|| {
+        (execute::<f64>(&circ, batch, &x, &w).unwrap(), sample::<f64>(&circ, batch, &x, &w, &[0, 3], 50, 9).unwrap())
+    });
+    let many = pool(4).install(|| {
+        (execute::<f64>(&circ, batch, &x, &w).unwrap(), sample::<f64>(&circ, batch, &x, &w, &[0, 3], 50, 9).unwrap())
+    });
     assert_eq!(one.0, many.0);
     assert_eq!(one.1, many.1);
 }

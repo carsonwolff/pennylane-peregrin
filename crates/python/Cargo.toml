@@ -14,6 +14,6 @@ crate-type = ["cdylib"]
 
 [dependencies]
 peregrin-core = { path = "../core" }
-pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.23", features = ["abi3-py310"] }  # extension-module is set by maturin (pyproject.toml), so cargo test links
 numpy = "0.23"
 rayon = "1.10"

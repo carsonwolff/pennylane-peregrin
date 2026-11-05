@@ -1,0 +1,89 @@
+# Correctness on every push and pull request. Speed is not checked here: shared CI runners
+# are too noisy for that; benchmarks run on real hardware with bench/sweeps/cpu.sh.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: rustfmt and clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all --check
+      - run: cargo clippy --workspace --release --all-targets -- -D warnings
+
+  msrv:
+    name: Rust 1.80 (minimum supported)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.80
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo check --workspace --all-targets
+
+  rust:
+    name: core tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        # ubuntu and windows are x86_64 (AVX2 path); macos-latest is arm64 (portable path).
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test -p peregrin-core --release
+
+  python:
+    name: device tests (${{ matrix.os }}, py${{ matrix.python }}, ${{ matrix.pennylane }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ["3.12"]
+        pennylane: ["pennylane"]
+        include:
+          # oldest supported Python with the oldest supported PennyLane
+          - os: ubuntu-latest
+            python: "3.10"
+            pennylane: "pennylane==0.42.*"
+          # newest Python
+          - os: ubuntu-latest
+            python: "3.13"
+            pennylane: "pennylane"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build the wheel
+        run: |
+          python -m pip install --upgrade pip maturin
+          maturin build --release -m crates/python/Cargo.toml -o dist
+      - name: Install it with test dependencies
+        shell: bash
+        run: python -m pip install "${{ matrix.pennylane }}" pytest dist/*.whl
+      - name: Run the device tests against default.qubit
+        # run from outside the source tree so the installed package is the one tested
+        working-directory: ${{ runner.temp }}
+        run: python -m pytest -q ${{ github.workspace }}/crates/python/tests

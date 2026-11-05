@@ -124,14 +124,23 @@ impl Circuit {
 
     /// Run the circuit once per row of `inputs` (batch, d_x) with shared `weights` (k,).
     /// Both must have the same dtype, float64 or float32; the result has that dtype too.
-    fn execute<'py>(&self, py: Python<'py>, inputs: &Bound<'py, PyAny>, weights: &Bound<'py, PyAny>) -> PyResult<PyObject> {
-        if let (Ok(x), Ok(w)) = (inputs.extract::<PyReadonlyArray2<f64>>(), weights.extract::<PyReadonlyArray1<f64>>()) {
+    fn execute<'py>(
+        &self,
+        py: Python<'py>,
+        inputs: &Bound<'py, PyAny>,
+        weights: &Bound<'py, PyAny>,
+    ) -> PyResult<PyObject> {
+        if let (Ok(x), Ok(w)) = (inputs.extract::<PyReadonlyArray2<f64>>(), weights.extract::<PyReadonlyArray1<f64>>())
+        {
             return Ok(run(py, &self.c, x, w)?.into_any().unbind());
         }
-        if let (Ok(x), Ok(w)) = (inputs.extract::<PyReadonlyArray2<f32>>(), weights.extract::<PyReadonlyArray1<f32>>()) {
+        if let (Ok(x), Ok(w)) = (inputs.extract::<PyReadonlyArray2<f32>>(), weights.extract::<PyReadonlyArray1<f32>>())
+        {
             return Ok(run(py, &self.c, x, w)?.into_any().unbind());
         }
-        Err(PyTypeError::new_err("inputs (2-D) and weights (1-D) must be numpy arrays of the same dtype, float64 or float32"))
+        Err(PyTypeError::new_err(
+            "inputs (2-D) and weights (1-D) must be numpy arrays of the same dtype, float64 or float32",
+        ))
     }
 }
 

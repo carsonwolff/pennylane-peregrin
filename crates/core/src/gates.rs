@@ -95,12 +95,7 @@ pub(crate) fn mat1<T: Real>(k: K1, p: [T; 3]) -> M2<T> {
 /// a * b (apply b first, then a).
 #[inline(always)]
 pub(crate) fn mul2<T: Real>(a: &M2<T>, b: &M2<T>) -> M2<T> {
-    [
-        a[0] * b[0] + a[1] * b[2],
-        a[0] * b[1] + a[1] * b[3],
-        a[2] * b[0] + a[3] * b[2],
-        a[2] * b[1] + a[3] * b[3],
-    ]
+    [a[0] * b[0] + a[1] * b[2], a[0] * b[1] + a[1] * b[3], a[2] * b[0] + a[3] * b[2], a[2] * b[1] + a[3] * b[3]]
 }
 
 pub(crate) fn is_diag2<T: Real>(m: &M2<T>) -> bool {

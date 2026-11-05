@@ -79,10 +79,19 @@ impl Gate {
     pub fn arity(&self) -> Option<usize> {
         use Gate::*;
         match self {
-            PauliX | PauliY | PauliZ | Hadamard | S | Sdg | T | Tdg | SX | RX(_) | RY(_) | RZ(_)
-            | PhaseShift(_) | Rot(..) | U3(..) => Some(1),
-            CNOT | CY | CZ | SWAP | CRX(_) | CRY(_) | CRZ(_) | ControlledPhaseShift(_) | IsingXX(_)
-            | IsingYY(_) | IsingZZ(_) => Some(2),
+            PauliX | PauliY | PauliZ | Hadamard | S | Sdg | T | Tdg | SX | RX(_) | RY(_) | RZ(_) | PhaseShift(_)
+            | Rot(..) | U3(..) => Some(1),
+            CNOT
+            | CY
+            | CZ
+            | SWAP
+            | CRX(_)
+            | CRY(_)
+            | CRZ(_)
+            | ControlledPhaseShift(_)
+            | IsingXX(_)
+            | IsingYY(_)
+            | IsingZZ(_) => Some(2),
             MultiRZ(_) | PauliRot(..) | QubitUnitary(_) => None,
         }
     }
@@ -90,8 +99,19 @@ impl Gate {
     pub fn params(&self) -> Vec<Param> {
         use Gate::*;
         match self {
-            RX(p) | RY(p) | RZ(p) | PhaseShift(p) | CRX(p) | CRY(p) | CRZ(p) | ControlledPhaseShift(p)
-            | IsingXX(p) | IsingYY(p) | IsingZZ(p) | MultiRZ(p) | PauliRot(p, _) => vec![*p],
+            RX(p)
+            | RY(p)
+            | RZ(p)
+            | PhaseShift(p)
+            | CRX(p)
+            | CRY(p)
+            | CRZ(p)
+            | ControlledPhaseShift(p)
+            | IsingXX(p)
+            | IsingYY(p)
+            | IsingZZ(p)
+            | MultiRZ(p)
+            | PauliRot(p, _) => vec![*p],
             Rot(a, b, c) | U3(a, b, c) => vec![*a, *b, *c],
             _ => vec![],
         }

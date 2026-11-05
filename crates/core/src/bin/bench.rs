@@ -44,7 +44,10 @@ fn owner_mri(n: usize) -> Circuit {
             for q in 0..4 {
                 c.gate(Gate::Hadamard, &[q]);
             }
-            c.gate(Gate::RY(s(0)), &[0]).gate(Gate::RZ(s(1)), &[1]).gate(Gate::RX(s(3)), &[2]).gate(Gate::RY(s(4)), &[3]);
+            c.gate(Gate::RY(s(0)), &[0])
+                .gate(Gate::RZ(s(1)), &[1])
+                .gate(Gate::RX(s(3)), &[2])
+                .gate(Gate::RY(s(4)), &[3]);
             for q in 0..3 {
                 c.gate(Gate::CNOT, &[q, q + 1]);
             }

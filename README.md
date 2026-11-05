@@ -1,5 +1,7 @@
 # peregrin
 
+[![CI](https://github.com/carsonwolff/pennylane-peregrin/actions/workflows/ci.yml/badge.svg)](https://github.com/carsonwolff/pennylane-peregrin/actions/workflows/ci.yml)
+
 A fast simulator for large batches of small quantum circuits (1 to 10 qubits), built for
 quanvolutional preprocessing: one circuit per image patch, hundreds of thousands of patches per
 call. The core is written in Rust and runs one batch-first call: a circuit template, a
@@ -22,9 +24,18 @@ Status: CPU core, Python bindings and the PennyLane device work. A GPU backend i
 | `crates/python` | `pennylane-peregrin`, the Python package (PyO3 + maturin), imported as `peregrin` |
 | `bench/` | qbench, the benchmark harness that compares peregrin with other PennyLane backends; see [bench/README.md](bench/README.md) |
 
-## Install (from source)
+## Install
 
-Needs a Rust toolchain ([rustup.rs](https://rustup.rs)) and Python 3.9+.
+```bash
+pip install pennylane-peregrin      # once 0.1.0 is on PyPI; needs Python 3.10+ and PennyLane 0.42+
+```
+
+Wheels are built for Linux (x86_64, aarch64), macOS (Intel, Apple Silicon) and Windows (x64).
+The fast SIMD path needs AVX2, which is detected at runtime; other CPUs, including Apple
+Silicon, run a portable path that the compiler vectorizes on its own. Its speed has not been
+benchmarked yet.
+
+From source (needs a Rust toolchain from [rustup.rs](https://rustup.rs)):
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -128,6 +139,13 @@ cargo test --release                              # golden outputs from default.
 pytest crates/python/tests                        # the PennyLane device against default.qubit
 cd bench && ../.venv/bin/python tests/test_circuits.py
 ```
+
+## Releasing
+
+CI (`.github/workflows/ci.yml`) runs rustfmt, clippy, the Rust tests on Linux, Windows and macOS,
+and the device tests on PennyLane 0.42 through the latest. To release, bump `version` in
+`Cargo.toml`, then `git tag v<version> && git push origin v<version>`. The release workflow
+builds and tests the wheels and publishes them to PyPI.
 
 ## License
 

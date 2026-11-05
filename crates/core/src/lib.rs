@@ -20,6 +20,10 @@
 //! assert!((out[0] - 1.0).abs() < 1e-12 && (out[2] + 1.0).abs() < 1e-12);
 //! ```
 
+// Lane loops index several [T; W] arrays by the lane number on purpose: that is the form the
+// compiler vectorizes.
+#![allow(clippy::needless_range_loop)]
+
 mod circuit;
 mod exec;
 mod gates;
