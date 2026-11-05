@@ -1,0 +1,8 @@
+numpy
+pennylane>=0.45
+pennylane-lightning>=0.45
+pennylane-catalyst>=0.15
+jax>=0.7
+pennylane-qulacs
+qulacs
+matplotlib

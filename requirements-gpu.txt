@@ -1,0 +1,4 @@
+# install on the GPU machine, on top of requirements.txt
+jax[cuda12]>=0.7
+pennylane-lightning-gpu>=0.45
+qulacs-gpu
