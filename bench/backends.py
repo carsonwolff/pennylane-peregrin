@@ -244,6 +244,26 @@ def build_peregrin(wl: Workload, precision):
                  "peregrin_version": peregrin.__version__}
 
 
+def build_peregrin_qnode(wl: Workload, precision):
+    """peregrin as a PennyLane device: the circuit's PennyLane body in a broadcast QNode,
+    exactly like the default.qubit backend. The gap to peregrin-cpu is PennyLane's own cost."""
+    import os
+
+    import pennylane as qml
+
+    threads = int(os.environ.get("OMP_NUM_THREADS") or 0) or None
+    dev = qml.device("peregrin", wires=wl.n_qubits, precision=precision, threads=threads)
+
+    @qml.qnode(dev, interface=None, diff_method=None)
+    def qnode(f, w):
+        return circuits.get(wl).body(qml, f, w, wl)
+
+    def run(F, W):
+        return np.asarray(_stack_outputs(qnode(F, W), np))
+
+    return run, {"precision_effective": precision}
+
+
 # ---------------------------------------------------------------- lightning (no qjit)
 def _build_lightning_plain(device_name):
     def build(wl: Workload, precision):
@@ -322,6 +342,7 @@ BACKENDS = {
     "jax-hand-cpu": (build_jax_hand, {"JAX_PLATFORMS": "cpu"}, False),
     "jax-hand-gpu": (build_jax_hand, {"JAX_PLATFORMS": "cuda"}, True),
     "peregrin-cpu": (build_peregrin, {}, False),
+    "peregrin-qnode": (build_peregrin_qnode, {}, False),
     "lightning.qubit": (_build_lightning_plain("lightning.qubit"), {"JAX_PLATFORMS": "cpu"}, False),
     "lightning.qubit+qjit": (_build_lightning_qjit("lightning.qubit"), {"JAX_PLATFORMS": "cpu"}, False),
     "lightning.gpu": (_build_lightning_plain("lightning.gpu"), {"JAX_PLATFORMS": "cpu"}, True),

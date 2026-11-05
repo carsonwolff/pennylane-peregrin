@@ -1,6 +1,6 @@
 """Compare one backend against the fastest other backend in every cell.
 
-    python compare.py results/<run-a> results/<run-b> ... [--ours peregrin-cpu] [--md]
+    python compare.py results/<run-a> results/<run-b> ... [--ours peregrin-cpu] [--exclude b ...] [--md]
 
 A cell is (circuit, precision, embed, n_qubits, batch). Rows from all given folders are
 pooled; when one backend has several rows for a cell (a re-run), the newest folder wins,
@@ -29,6 +29,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("dirs", nargs="+")
     ap.add_argument("--ours", default="peregrin-cpu")
+    ap.add_argument("--exclude", nargs="*", default=[], help="backends to leave out of 'best other'")
     ap.add_argument("--md", action="store_true", help="markdown table")
     args = ap.parse_args()
     rows = load(args.dirs)
@@ -36,7 +37,8 @@ def main():
     out = []
     for cell in cells:
         ours = rows.get(cell + (args.ours,))
-        others = {k[5]: v for k, v in rows.items() if k[:5] == cell and k[5] != args.ours}
+        others = {k[5]: v for k, v in rows.items()
+                  if k[:5] == cell and k[5] != args.ours and k[5] not in args.exclude}
         if ours is None or not others:
             continue
         best = max(others, key=others.get)

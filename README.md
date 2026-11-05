@@ -8,10 +8,11 @@ call. The core is written in Rust and runs one batch-first call: a circuit templ
 On a 2-core laptop CPU it beats every PennyLane CPU backend we measured, including a
 hand-written batched JAX simulator, at every qubit count and batch size we tested (68 of 68
 cells). The smallest margin is 1.34x, and at B=100k it is 2.1x to 15.7x. Outputs match
-default.qubit to 1e-12 in f64. Full numbers and methodology: [bench/RESULTS.md](bench/RESULTS.md).
+default.qubit to 1e-12 in f64. Used through PennyLane as `qml.device("peregrin")`, it is
+faster than every other PennyLane device in all 68 cells (5.3x to 73x at B=100k). Full numbers
+and methodology: [bench/RESULTS.md](bench/RESULTS.md).
 
-Status: CPU core and Python bindings work. A PennyLane device (`qml.device("peregrin", ...)`)
-and a GPU backend are next.
+Status: CPU core, Python bindings and the PennyLane device work. A GPU backend is next.
 
 ## Layout
 
@@ -30,6 +31,38 @@ python -m venv .venv && source .venv/bin/activate
 pip install maturin
 cd crates/python && maturin develop --release
 ```
+
+## Use from PennyLane
+
+```python
+import numpy as np
+import pennylane as qml
+
+dev = qml.device("peregrin", wires=4)          # precision="f32" and threads=N are optional
+
+@qml.qnode(dev)
+def quanv(patches, weights):                   # patches: (batch, 4), one row per image patch
+    for i in range(4):
+        qml.RY(np.pi * patches[:, i], wires=i)
+    qml.RandomLayers(weights, wires=range(4))
+    return [qml.expval(qml.Z(i)) for i in range(4)]
+
+out = quanv(np.random.rand(100_000, 4), np.random.uniform(0, 2 * np.pi, (1, 4)))
+```
+
+Write the circuit for the whole batch with parameter broadcasting (a leading batch dimension on
+the angles, or a batch of states in `qml.StatePrep` / `qml.AmplitudeEmbedding`). The whole
+batch then runs as one call. A Python loop over patches still works, but each patch becomes
+its own call and PennyLane's per-call overhead dominates.
+
+Supported:
+- **Gates:** any gate PennyLane can decompose into the gate set below.
+- **State preparation:** StatePrep, AmplitudeEmbedding or BasisState as the first operation.
+- **Measurements:** `expval` and `var` of Pauli words, Hamiltonians, and sums or products of
+  Paulis; matrix observables such as `Hermitian` on up to 4 wires; `probs`; `state`.
+- **Gradients:** parameter-shift, with any interface. PennyLane selects it automatically.
+
+Not supported yet: shots (sampling), mid-circuit measurements, and device-native gradients.
 
 ## Use from Python
 
@@ -92,6 +125,7 @@ with a seed per circuit, so results don't depend on the thread count.
 
 ```bash
 cargo test --release                              # golden outputs from default.qubit, unit tests
+pytest crates/python/tests                        # the PennyLane device against default.qubit
 cd bench && ../.venv/bin/python tests/test_circuits.py
 ```
 

@@ -9,6 +9,8 @@
     })
     out = c.execute(X)          # X: (batch, d_x); out: (batch, n_outputs)
 
+As a PennyLane device: qml.device("peregrin", wires=n) (see peregrin.device).
+
 Params are ["x", col, scale] (column of the per-circuit inputs), ["w", idx, scale] (shared
 weight) or ["c", value]. Wire 0 is the most significant bit, as in PennyLane.
 """
@@ -54,3 +56,11 @@ class Circuit:
             raise ValueError(f"inputs must be 2-D (batch, d_x), got shape {x.shape}")
         w = np.ascontiguousarray(np.zeros(0) if weights is None else weights, dtype=dtype).reshape(-1)
         return self._c.execute(x, w)
+
+    def final_states(self, inputs=None, weights=None):
+        """Final state vectors, (batch, 2^n) complex128 (always computed in f64)."""
+        x = np.ascontiguousarray(inputs, dtype=np.float64)
+        if x.ndim != 2:
+            raise ValueError(f"inputs must be 2-D (batch, d_x), got shape {x.shape}")
+        w = np.ascontiguousarray(np.zeros(0) if weights is None else weights, dtype=np.float64).reshape(-1)
+        return self._c.final_states(x, w)

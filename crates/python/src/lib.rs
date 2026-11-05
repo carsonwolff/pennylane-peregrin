@@ -2,8 +2,8 @@
 
 use std::sync::{Arc, Mutex};
 
-use numpy::{PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
-use peregrin_core::{execute_into, Circuit as CoreCircuit, Real, SERIAL_BELOW};
+use numpy::{Complex64, PyArray2, PyArrayMethods, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods};
+use peregrin_core::{execute_into, final_states, Circuit as CoreCircuit, Real, SERIAL_BELOW};
 use pyo3::exceptions::{PyTypeError, PyValueError};
 use pyo3::prelude::*;
 
@@ -67,8 +67,46 @@ fn run<'py, T: Real + numpy::Element>(
     Ok(out)
 }
 
+fn states<'py>(
+    py: Python<'py>,
+    c: &CoreCircuit,
+    x: PyReadonlyArray2<'py, f64>,
+    w: PyReadonlyArray1<'py, f64>,
+) -> PyResult<Bound<'py, PyArray2<Complex64>>> {
+    let batch = x.shape()[0];
+    let xs = x.as_slice().map_err(|_| PyValueError::new_err("inputs must be C-contiguous"))?;
+    let ws = w.as_slice().map_err(|_| PyValueError::new_err("weights must be contiguous"))?;
+    let p = if batch < SERIAL_BELOW { None } else { pool() };
+    let psi = py
+        .allow_threads(|| match p {
+            Some(p) => p.install(|| final_states::<f64>(c, batch, xs, ws)),
+            None => final_states::<f64>(c, batch, xs, ws),
+        })
+        .map_err(|e| PyValueError::new_err(e.0))?;
+    let dim = 1usize << c.n_qubits;
+    let out = PyArray2::<Complex64>::zeros(py, [batch, dim], false);
+    {
+        let mut guard = out.readwrite();
+        let dst = guard.as_slice_mut().expect("fresh array is contiguous");
+        for (d, z) in dst.iter_mut().zip(psi) {
+            *d = Complex64::new(z.re, z.im);
+        }
+    }
+    Ok(out)
+}
+
 #[pymethods]
 impl Circuit {
+    /// Final state vectors (batch, 2^n), complex128. Inputs and weights are float64.
+    fn final_states<'py>(
+        &self,
+        py: Python<'py>,
+        inputs: PyReadonlyArray2<'py, f64>,
+        weights: PyReadonlyArray1<'py, f64>,
+    ) -> PyResult<Bound<'py, PyArray2<Complex64>>> {
+        states(py, &self.c, inputs, weights)
+    }
+
     #[new]
     fn new(spec_json: &str) -> PyResult<Self> {
         CoreCircuit::from_json(spec_json).map(|c| Circuit { c }).map_err(|e| PyValueError::new_err(e.0))
