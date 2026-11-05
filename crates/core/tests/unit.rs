@@ -2,7 +2,7 @@
 
 use std::f64::consts::{FRAC_1_SQRT_2, PI};
 
-use qbatch_core::{execute, final_states, sample, Circuit, Complex, Gate, Param, Pauli, StatePrep};
+use peregrin_core::{execute, final_states, sample, Circuit, Complex, Gate, Param, Pauli, StatePrep};
 
 type C = Complex<f64>;
 

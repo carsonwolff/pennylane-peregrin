@@ -1,6 +1,6 @@
 //! Build a `Circuit` from the JSON spec written by tests/export_golden.py.
 
-use qbatch_core::{Circuit, Complex, Gate, Measurement, Op, Param, Pauli, PauliWord, StatePrep};
+use peregrin_core::{Circuit, Complex, Gate, Measurement, Op, Param, Pauli, PauliWord, StatePrep};
 use serde_json::Value;
 
 pub struct Case {

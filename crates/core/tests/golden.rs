@@ -2,7 +2,7 @@
 
 mod common;
 
-use qbatch_core::{execute, final_states};
+use peregrin_core::{execute, final_states};
 
 fn check(file: &str) {
     let cases = common::load(file);

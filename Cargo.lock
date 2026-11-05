@@ -79,7 +79,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "qbatch-core"
+name = "peregrin-core"
 version = "0.1.0"
 dependencies = [
  "num-complex",

@@ -1,11 +1,11 @@
 //! Quick in-process throughput check for development. Not the published benchmark: that runs
 //! through qbench (numpy in, numpy out) once the Python bindings exist.
 //!
-//!   cargo run --release --bin qbatch-bench -- [generic|owner-mri] [f64|f32] [threads]
+//!   cargo run --release --bin peregrin-bench -- [generic|owner-mri] [f64|f32] [threads]
 
 use std::time::Instant;
 
-use qbatch_core::{execute_into, Circuit, Gate, Param, Pauli, Real, StatePrep};
+use peregrin_core::{execute_into, Circuit, Gate, Param, Pauli, Real, StatePrep};
 
 fn generic(n: usize) -> Circuit {
     let mut c = Circuit::new(n);

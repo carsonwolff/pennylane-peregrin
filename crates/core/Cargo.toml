@@ -1,5 +1,5 @@
 [package]
-name = "qbatch-core"
+name = "peregrin-core"
 description = "Batched state-vector simulator for large batches of small (1 to 12 qubit) circuits"
 version.workspace = true
 edition.workspace = true
@@ -16,5 +16,5 @@ rayon = "1.10"
 serde_json = "1"
 
 [[bin]]
-name = "qbatch-bench"
+name = "peregrin-bench"
 path = "src/bin/bench.rs"

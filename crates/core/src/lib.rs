@@ -9,14 +9,14 @@
 //! matrices are PennyLane's, and multi-wire measurement outputs (probs) order wires as given.
 //!
 //! ```
-//! use qbatch_core::{Circuit, Gate, Param, Pauli};
+//! use peregrin_core::{Circuit, Gate, Param, Pauli};
 //!
 //! // RY(x_0) on wire 0, CNOT(0, 1), then <Z_0> and <Z_1>.
 //! let mut c = Circuit::new(2);
 //! c.gate(Gate::RY(Param::input(0)), &[0]).gate(Gate::CNOT, &[0, 1]);
 //! c.expval(&[(0, Pauli::Z)]).expval(&[(1, Pauli::Z)]);
 //! let inputs = [0.0_f64, std::f64::consts::PI]; // two circuits, one input column each
-//! let out = qbatch_core::execute(&c, 2, &inputs, &[]).unwrap();
+//! let out = peregrin_core::execute(&c, 2, &inputs, &[]).unwrap();
 //! assert!((out[0] - 1.0).abs() < 1e-12 && (out[2] + 1.0).abs() < 1e-12);
 //! ```
 
