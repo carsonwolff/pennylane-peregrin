@@ -10,7 +10,7 @@ T=${1:-$(lscpu -p=Core,Socket | grep -v '^#' | sort -u | wc -l)}
 TAG=$(date +%Y%m%d-%H%M)
 B="100 1000 10000 100000"
 COMMON="--threads $T --budget 10 --timeout 300 --batches $B${BACKENDS:+ --backends $BACKENDS}"
-run() { local label=$1; shift; "$PY" run_bench.py $COMMON --out "results/$TAG-$label${LABEL:+-$LABEL}" "$@"; "$PY" summarize.py "results/$TAG-$label" > /dev/null; }
+run() { local label=$1${LABEL:+-$LABEL}; shift; "$PY" run_bench.py $COMMON --out "results/$TAG-$label" "$@"; "$PY" summarize.py "results/$TAG-$label" > /dev/null; }
 
 run owner-mri-f64      --circuit owner-mri
 run generic-f64        --circuit generic
