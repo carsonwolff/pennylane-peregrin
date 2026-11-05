@@ -12,8 +12,8 @@
 //!   H and RY), the imaginary half of the work is skipped.
 
 use crate::circuit::StatePrep;
-use crate::gates::{C, M2};
-use crate::program::{sign_of, Fused, MeasPlan, Program, Stage, Val};
+use crate::gates::{mat1, C, K1, M2};
+use crate::program::{sign_of, Factor, Fused, MeasPlan, Program, Stage, Val};
 use crate::Real;
 
 /// Circuits per tile.
@@ -254,9 +254,7 @@ impl<'p, T: Real> TileProgram<'p, T> {
                         let m: &LaneMat<T> = match mat {
                             Mat::Static(m) => m,
                             Mat::Dyn(f) => {
-                                for l in 0..W {
-                                    lm.set_lane(l, &f.eval(row(l)));
-                                }
+                                eval_lanes(f, &row, &mut lm);
                                 &lm
                             }
                         };
@@ -423,15 +421,148 @@ impl<'p, T: Real> TileProgram<'p, T> {
     }
 }
 
+/// sin and cos of theta/2 per lane.
 #[inline(always)]
 fn half_angle<'x, T: Real>(theta: &Val<T>, row: &dyn Fn(usize) -> &'x [T]) -> (L<T>, L<T>) {
+    let mut h = [T::zero(); W];
+    for (l, v) in h.iter_mut().enumerate() {
+        *v = theta.get(row(l)) * T::of(0.5);
+    }
+    sin_cos_lanes(&h)
+}
+
+// sin/cos on lanes: reduce by multiples of pi/2 (three-part constant, from fdlibm), then the
+// Cephes minimax polynomials on [-pi/4, pi/4]. About 1 ulp in f64. Written without branches
+// or integer conversions so the loop vectorizes; lanes with |x| >= 1e5 (or NaN) are redone
+// with the library functions.
+const PIO2_1: f64 = 1.570_796_326_734_125_614_17e+00;
+const PIO2_2: f64 = 6.077_100_506_303_965_976_60e-11;
+const PIO2_3: f64 = 2.022_266_248_711_166_455_80e-21;
+const SIN_P: [f64; 6] = [
+    1.589_623_015_765_465_680_60e-10,
+    -2.505_074_776_285_780_728_66e-8,
+    2.755_731_362_138_572_452_13e-6,
+    -1.984_126_982_958_953_859_96e-4,
+    8.333_333_333_322_118_588_78e-3,
+    -1.666_666_666_666_663_072_95e-1,
+];
+const COS_P: [f64; 6] = [
+    -1.135_853_652_138_768_173_00e-11,
+    2.087_570_084_197_473_167_78e-9,
+    -2.755_731_417_929_673_881_12e-7,
+    2.480_158_728_885_170_453_48e-5,
+    -1.388_888_888_887_305_641_16e-3,
+    4.166_666_666_666_659_292_18e-2,
+];
+
+#[inline(always)]
+pub(crate) fn sin_cos_lanes<T: Real>(x: &L<T>) -> (L<T>, L<T>) {
+    const MAGIC: f64 = 6_755_399_441_055_744.0; // 1.5 * 2^52: adding it rounds to an integer
     let (mut s, mut c) = ([T::zero(); W], [T::zero(); W]);
+    let mut big = false;
     for l in 0..W {
-        let (a, b) = (theta.get(row(l)) * T::of(0.5)).sin_cos();
-        s[l] = a;
-        c[l] = b;
+        let v = x[l].as_f64();
+        big |= !(v.abs() < 1e5);
+        let kf = v * std::f64::consts::FRAC_2_PI + MAGIC;
+        let q = kf.to_bits(); // low bits hold k mod 2^32
+        let k = kf - MAGIC;
+        let r = ((v - k * PIO2_1) - k * PIO2_2) - k * PIO2_3;
+        let z = r * r;
+        let ps = ((((SIN_P[0] * z + SIN_P[1]) * z + SIN_P[2]) * z + SIN_P[3]) * z + SIN_P[4]) * z + SIN_P[5];
+        let pc = ((((COS_P[0] * z + COS_P[1]) * z + COS_P[2]) * z + COS_P[3]) * z + COS_P[4]) * z + COS_P[5];
+        let sr = r + r * z * ps;
+        let cr = 1.0 - 0.5 * z + z * z * pc;
+        let (a, b) = if q & 1 == 1 { (cr, sr) } else { (sr, cr) };
+        let sa = if q & 2 != 0 { -a } else { a };
+        let cb = if q.wrapping_add(1) & 2 != 0 { -b } else { b };
+        s[l] = T::of(sa);
+        c[l] = T::of(cb);
+    }
+    if big {
+        for l in 0..W {
+            if !(x[l].as_f64().abs() < 1e5) {
+                let (a, b) = x[l].sin_cos();
+                s[l] = a;
+                c[l] = b;
+            }
+        }
     }
     (s, c)
+}
+
+/// One single-qubit gate matrix per lane, for the gates that take parameters.
+#[inline(always)]
+fn mat1_lanes<T: Real>(k: K1, p: &[L<T>; 3], m: &mut LaneMat<T>) {
+    let z = [T::zero(); W];
+    let o = [T::one(); W];
+    let half = T::of(0.5);
+    let scaled = |a: &L<T>, f: T| a.map(|v| v * f);
+    let neg = |a: &L<T>| a.map(|v| -v);
+    match k {
+        K1::RX => {
+            let (s, c) = sin_cos_lanes(&scaled(&p[0], half));
+            m.re = [c, z, z, c];
+            m.im = [z, neg(&s), neg(&s), z];
+        }
+        K1::RY => {
+            let (s, c) = sin_cos_lanes(&scaled(&p[0], half));
+            m.re = [c, neg(&s), s, c];
+            m.im = [z; 4];
+        }
+        K1::RZ => {
+            let (s, c) = sin_cos_lanes(&scaled(&p[0], half));
+            m.re = [c, z, z, c];
+            m.im = [neg(&s), z, z, s];
+        }
+        K1::Phase => {
+            let (s, c) = sin_cos_lanes(&p[0]);
+            m.re = [o, z, z, c];
+            m.im = [z, z, z, s];
+        }
+        _ => {
+            for l in 0..W {
+                m.set_lane(l, &mat1(k, [p[0][l], p[1][l], p[2][l]]));
+            }
+        }
+    }
+}
+
+/// g * u per lane (apply u first).
+#[inline(always)]
+fn mul_lanes<T: Real>(g: &LaneMat<T>, u: &LaneMat<T>) -> LaneMat<T> {
+    let mut out = LaneMat::zero();
+    for (r, c) in [(0, 0), (0, 1), (1, 0), (1, 1)] {
+        let (a, b) = (2 * r, 2 * r + 1); // g[r][0], g[r][1]
+        let (x, y) = (c, 2 + c); // u[0][c], u[1][c]
+        for l in 0..W {
+            out.re[2 * r + c][l] = g.re[a][l] * u.re[x][l] - g.im[a][l] * u.im[x][l] + g.re[b][l] * u.re[y][l]
+                - g.im[b][l] * u.im[y][l];
+            out.im[2 * r + c][l] = g.re[a][l] * u.im[x][l] + g.im[a][l] * u.re[x][l] + g.re[b][l] * u.im[y][l]
+                + g.im[b][l] * u.re[y][l];
+        }
+    }
+    out
+}
+
+/// The fused matrix of every lane: factors evaluated and multiplied lane-wise.
+#[inline(always)]
+fn eval_lanes<'x, T: Real>(f: &Fused<T>, row: &dyn Fn(usize) -> &'x [T], out: &mut LaneMat<T>) {
+    let mut g = LaneMat::zero();
+    for (n, fac) in f.factors.iter().enumerate() {
+        match fac {
+            Factor::Fixed(m) => g = LaneMat::broadcast(m),
+            Factor::Dyn { k, p } => {
+                let mut pl = [[T::zero(); W]; 3];
+                for (dst, v) in pl.iter_mut().zip(p) {
+                    for (l, d) in dst.iter_mut().enumerate() {
+                        *d = v.get(row(l));
+                    }
+                }
+                mat1_lanes(*k, &pl, &mut g);
+            }
+        }
+        *out = if n == 0 { g } else { mul_lanes(&g, out) };
+    }
 }
 
 #[inline(always)]
@@ -484,5 +615,31 @@ fn k_diag<T: Real>(re: &mut [L<T>], im: &mut [L<T>], pairs: &[(u32, u32)], m: &L
                 im[r][l] = dr * b[l] + di * a[l];
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lane_sin_cos_matches_std() {
+        let mut worst = 0.0f64;
+        let mut x = -2000.0f64;
+        while x < 2000.0 {
+            let v: L<f64> = std::array::from_fn(|l| x + l as f64 * 0.013 + 1e-3 * (x * 7.1).sin());
+            let (s, c) = sin_cos_lanes(&v);
+            for l in 0..W {
+                worst = worst.max((s[l] - v[l].sin()).abs()).max((c[l] - v[l].cos()).abs());
+            }
+            x += 0.0917;
+        }
+        for &v in &[0.0, -0.0, 1e-300, 1e5, -3e7, 1e300, f64::NAN, f64::INFINITY, std::f64::consts::FRAC_PI_4] {
+            let (s, c) = sin_cos_lanes(&[v; W]);
+            let (es, ec) = v.sin_cos();
+            assert!((s[0] - es).abs() < 1e-15 || (s[0].is_nan() && es.is_nan()), "sin {v}");
+            assert!((c[0] - ec).abs() < 1e-15 || (c[0].is_nan() && ec.is_nan()), "cos {v}");
+        }
+        assert!(worst < 4e-16, "worst {worst:e}");
     }
 }

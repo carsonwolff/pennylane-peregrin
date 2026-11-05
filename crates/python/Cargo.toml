@@ -1,0 +1,19 @@
+[package]
+name = "peregrin-python"
+description = "Python bindings for peregrin-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+publish = false
+
+[lib]
+name = "_core"
+crate-type = ["cdylib"]
+
+[dependencies]
+peregrin-core = { path = "../core" }
+pyo3 = { version = "0.23", features = ["extension-module", "abi3-py39"] }
+numpy = "0.23"
+rayon = "1.10"

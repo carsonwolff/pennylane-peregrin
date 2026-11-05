@@ -29,7 +29,7 @@ from backends import BACKENDS, REFERENCE  # noqa: E402
 PKGS = [
     "numpy", "scipy", "pennylane", "pennylane_lightning", "pennylane_lightning_gpu",
     "pennylane_catalyst", "jax", "jaxlib", "jax_cuda12_plugin", "jax_cuda13_plugin",
-    "qulacs", "qulacs_gpu", "pennylane_qulacs", "custatevec_cu12", "custatevec_cu13",
+    "qulacs", "qulacs_gpu", "pennylane_qulacs", "pennylane_peregrin", "custatevec_cu12", "custatevec_cu13",
 ]
 
 REQUIRES = {  # import names or "device:<pennylane device>" needed per backend
@@ -42,6 +42,7 @@ REQUIRES = {  # import names or "device:<pennylane device>" needed per backend
     "lightning.gpu+qjit": ["device:lightning.gpu", "catalyst"],
     "qulacs": ["device:qulacs.simulator", "qulacs"],
     "qulacs-gpu": ["device:qulacs.simulator", "qulacs"],
+    "peregrin-cpu": ["peregrin"],
 }
 
 

@@ -1,0 +1,25 @@
+[build-system]
+requires = ["maturin>=1.5,<2"]
+build-backend = "maturin"
+
+[project]
+name = "pennylane-peregrin"
+description = "Fast batched CPU simulation of many small circuits, with a PennyLane device"
+requires-python = ">=3.9"
+license = { text = "MIT OR Apache-2.0" }
+authors = [{ name = "Carson Wolff" }]
+dependencies = ["numpy>=1.21"]
+dynamic = ["version"]
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+]
+
+[project.optional-dependencies]
+pennylane = ["pennylane>=0.38"]
+
+[tool.maturin]
+python-source = "python"
+module-name = "peregrin._core"
+features = ["pyo3/extension-module"]

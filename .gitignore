@@ -4,3 +4,4 @@ target/
 # private reference material (copyrighted paper, handoff, figures); not for the public repo
 *.pdf
 *.gif
+*.so

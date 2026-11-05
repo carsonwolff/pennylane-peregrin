@@ -203,6 +203,47 @@ def _build_jax_template(wl: Workload, precision):
                  "note": f"template interpreter: {n_u} fused 1q stages, {n_p} gathers"}
 
 
+# ---------------------------------------------------------------- peregrin (this project)
+def template_spec(wl: Workload):
+    """circuits.<name>.template as a peregrin circuit spec (same gate list jax-hand runs)."""
+    ops, meas = circuits.get(wl).template(wl)
+    spec_ops, prep = [], None
+    for name, wires, param in ops:
+        if name == "StatePrep":
+            assert not spec_ops, "StatePrep must come first"
+            prep = {"kind": "real", "start": int(param[1][0])}
+            continue
+        op = {"name": name, "wires": [int(w) for w in wires]}
+        if param is not None:
+            kind, i, scale = param
+            op["params"] = [[kind, int(i), float(scale)]]
+        spec_ops.append(op)
+    return {"n_qubits": wl.n_qubits, "state_prep": prep, "ops": spec_ops,
+            "measurements": [{"type": "expval", "word": [[int(q), p]]} for p, q in meas]}
+
+
+def build_peregrin(wl: Workload, precision):
+    """peregrin-core through its Python bindings (pennylane-peregrin), numpy in, numpy out.
+
+    Threads follow OMP_NUM_THREADS when set (run_bench.py --threads), else one per logical
+    CPU. JAX is not limited the same way, so if anything this favors the JAX baselines.
+    """
+    import os
+
+    import peregrin
+
+    threads = int(os.environ.get("OMP_NUM_THREADS") or 0)
+    peregrin.set_num_threads(threads)
+    c = peregrin.Circuit(template_spec(wl))
+    dt = np.float64 if precision == "f64" else np.float32
+
+    def run(F, W):
+        return c.execute(F, W, dtype=dt)
+
+    return run, {"precision_effective": precision, "threads": peregrin.get_num_threads(),
+                 "peregrin_version": peregrin.__version__}
+
+
 # ---------------------------------------------------------------- lightning (no qjit)
 def _build_lightning_plain(device_name):
     def build(wl: Workload, precision):
@@ -280,6 +321,7 @@ BACKENDS = {
     "dq-jax-gpu": (build_dq_jax, {"JAX_PLATFORMS": "cuda"}, True),
     "jax-hand-cpu": (build_jax_hand, {"JAX_PLATFORMS": "cpu"}, False),
     "jax-hand-gpu": (build_jax_hand, {"JAX_PLATFORMS": "cuda"}, True),
+    "peregrin-cpu": (build_peregrin, {}, False),
     "lightning.qubit": (_build_lightning_plain("lightning.qubit"), {"JAX_PLATFORMS": "cpu"}, False),
     "lightning.qubit+qjit": (_build_lightning_qjit("lightning.qubit"), {"JAX_PLATFORMS": "cpu"}, False),
     "lightning.gpu": (_build_lightning_plain("lightning.gpu"), {"JAX_PLATFORMS": "cpu"}, True),

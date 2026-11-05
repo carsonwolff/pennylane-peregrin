@@ -12,7 +12,7 @@ use crate::tile::{TileProgram, MAX_TILE_QUBITS};
 use crate::{err, Real, Result};
 
 /// Below this many circuits the batch runs on the calling thread.
-const SERIAL_BELOW: usize = 256;
+pub const SERIAL_BELOW: usize = 256;
 
 fn chunk_rows(batch: usize) -> usize {
     let tasks = rayon::current_num_threads().max(1) * 8;

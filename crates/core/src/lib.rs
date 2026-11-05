@@ -23,13 +23,14 @@
 mod circuit;
 mod exec;
 mod gates;
+mod json;
 mod program;
 mod real;
 mod rng;
 mod tile;
 
 pub use circuit::{Circuit, Gate, Measurement, Op, Param, Pauli, PauliWord, StatePrep};
-pub use exec::{execute, execute_into, final_states, sample};
+pub use exec::{execute, execute_into, final_states, sample, SERIAL_BELOW};
 pub use num_complex::Complex;
 pub use real::Real;
 
