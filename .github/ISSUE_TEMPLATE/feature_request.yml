@@ -1,0 +1,16 @@
+name: Feature request
+description: A gate, measurement, option or workflow peregrin does not support yet
+labels: [enhancement]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What you would like
+      description: What should work, ideally with a short example of how you would use it.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: The workload or research use behind it. This helps decide priority and scope.
