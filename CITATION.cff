@@ -9,7 +9,6 @@ repository-code: "https://github.com/carsonwolff/pennylane-peregrin"
 license:
   - MIT
   - Apache-2.0
-version: 0.1.0
 abstract: >-
   peregrin is a state-vector simulator for large batches of small (1 to 10 qubit) quantum
   circuits, built for quanvolutional preprocessing, where one circuit runs once per image

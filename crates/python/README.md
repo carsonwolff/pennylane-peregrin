@@ -4,9 +4,9 @@ Fast CPU simulation of large batches of small quantum circuits (1 to 10 qubits),
 PennyLane device. It is built for quanvolutional preprocessing: one circuit per image patch,
 hundreds of thousands of patches per call. The simulator core is written in Rust.
 
-```bash
-pip install pennylane-peregrin
-```
+This package was never published to PyPI, and the project is archived. To use it, build it
+from source as described in the
+[repository](https://github.com/carsonwolff/pennylane-peregrin).
 
 ```python
 import numpy as np
