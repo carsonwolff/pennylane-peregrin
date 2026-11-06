@@ -140,6 +140,20 @@ pytest crates/python/tests                        # the PennyLane device against
 cd bench && ../.venv/bin/python tests/test_circuits.py
 ```
 
+## Support
+
+- **Bugs and questions:** open an issue at
+  https://github.com/carsonwolff/pennylane-peregrin/issues. A wrong result is treated as the
+  most serious kind of bug.
+- **Response:** peregrin is maintained by one person, Carson Wolff, alongside research.
+  Expect a first reply within about a week. Correctness bugs come first.
+- **Supported versions:** Python 3.10 or newer and PennyLane 0.42 or newer, on Linux, macOS
+  and Windows. CI tests the oldest and newest of these. Before 1.0, minor releases may change
+  the API, and `CHANGELOG.md` records every change.
+- **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+  [code of conduct](CODE_OF_CONDUCT.md).
+- **Citing:** see [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.
+
 ## Releasing
 
 CI (`.github/workflows/ci.yml`) runs rustfmt, clippy, the Rust tests on Linux, Windows and macOS,
