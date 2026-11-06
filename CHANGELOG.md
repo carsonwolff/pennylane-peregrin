@@ -34,3 +34,5 @@ change the API.
 - A release workflow that builds wheels for Linux, macOS and Windows and publishes them to PyPI.
 - Project files: this changelog, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `CITATION.cff`, and
   issue and pull request templates.
+- `AI_USAGE.md`, a record of how AI tools were used, and a first draft of `DESIGN.md`, the
+  design decisions with who made each one.
