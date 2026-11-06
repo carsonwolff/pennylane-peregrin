@@ -29,22 +29,18 @@ here. No GPU backend is planned.
 
 ## Install
 
-```bash
-pip install pennylane-peregrin      # once 0.1.0 is on PyPI; needs Python 3.10+ and PennyLane 0.42+
-```
-
-Wheels are built for Linux (x86_64, aarch64), macOS (Intel, Apple Silicon) and Windows (x64).
-The fast SIMD path needs AVX2, which is detected at runtime; other CPUs, including Apple
-Silicon, run a portable path that the compiler vectorizes on its own. Its speed has not been
-benchmarked yet.
-
-From source (needs a Rust toolchain from [rustup.rs](https://rustup.rs)):
+peregrin was never published to PyPI, so it installs from source. You need Python 3.10+,
+PennyLane 0.42+ and a Rust toolchain (from [rustup.rs](https://rustup.rs)):
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install maturin
 cd crates/python && maturin develop --release
 ```
+
+The fast SIMD path needs AVX2, which is detected at runtime. Other CPUs, including Apple
+Silicon, run a portable path that the compiler vectorizes on its own. Its speed was never
+benchmarked.
 
 ## Use from PennyLane
 
@@ -153,12 +149,12 @@ cd bench && ../.venv/bin/python tests/test_circuits.py
   [code of conduct](CODE_OF_CONDUCT.md).
 - **Citing:** see [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.
 
-## Releasing
+## CI and releases
 
 CI (`.github/workflows/ci.yml`) runs rustfmt, clippy, the Rust tests on Linux, Windows and macOS,
-and the device tests on PennyLane 0.42 through the latest. To release, bump `version` in
-`Cargo.toml`, then `git tag v<version> && git push origin v<version>`. The release workflow
-builds and tests the wheels and publishes them to PyPI.
+and the device tests on PennyLane 0.42 through the latest. A release workflow
+(`.github/workflows/release.yml`) can build wheels for Linux, macOS and Windows and publish
+them to PyPI on a `v*` tag, but it was never run, and no release was made.
 
 ## License
 
