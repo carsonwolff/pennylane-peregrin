@@ -56,7 +56,8 @@ before acting on them:
 - the goal and the target workload: quanvolutional preprocessing of MRI patches, from his
   own paper and code;
 - which circuits to benchmark: his paper's circuits taken from his code, not from the
-  paper's figure, plus the circuits from his survey;
+  paper's figure, plus circuits from other published quanvolutional papers (his idea; the
+  survey of them was compiled by Claude);
 - the project and package names (`peregrin`, `pennylane-peregrin`), and the device names
   `peregrin.cpu` and, later, `peregrin.gpu`;
 - the license, the single repository and workspace, f32 and f64 both supported, and CPU first
