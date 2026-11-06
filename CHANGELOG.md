@@ -7,6 +7,17 @@ change the API.
 
 ## [Unreleased]
 
+### Changed
+
+- The project is archived as of November 2026. It works as documented but is no longer
+  developed or maintained, and issues and pull requests are closed. The README, the
+  contributing guide and `DESIGN.md` say so, and the planned GPU backend is dropped.
+
+### Removed
+
+- An incomplete benchmark run (`bench/results/20261104-2333-generic-f64`) that was stopped
+  partway through and never summarized.
+
 ### Added
 
 - `peregrin-core`, a Rust state-vector simulator for large batches of small circuits:

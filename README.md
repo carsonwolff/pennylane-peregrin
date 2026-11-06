@@ -1,5 +1,7 @@
 # peregrin
 
+> **Status: archived (November 2026).** peregrin works as described below, but it is no longer developed or maintained. Issues and pull requests are closed. You're welcome to fork it under either license.
+
 [![CI](https://github.com/carsonwolff/pennylane-peregrin/actions/workflows/ci.yml/badge.svg)](https://github.com/carsonwolff/pennylane-peregrin/actions/workflows/ci.yml)
 
 A fast simulator for large batches of small quantum circuits (1 to 10 qubits), built for
@@ -14,7 +16,8 @@ default.qubit to 1e-12 in f64. Used through PennyLane as `qml.device("peregrin.c
 faster than every other PennyLane device in all 68 cells (5.3x to 73x at B=100k). Full numbers
 and methodology: [bench/RESULTS.md](bench/RESULTS.md).
 
-Status: CPU core, Python bindings and the PennyLane device work. A GPU backend is next.
+Status: archived. The CPU core, the Python bindings and the PennyLane device work as described
+here. No GPU backend is planned.
 
 ## Layout
 
@@ -142,14 +145,10 @@ cd bench && ../.venv/bin/python tests/test_circuits.py
 
 ## Support
 
-- **Bugs and questions:** open an issue at
-  https://github.com/carsonwolff/pennylane-peregrin/issues. A wrong result is treated as the
-  most serious kind of bug.
-- **Response:** peregrin is maintained by one person, Carson Wolff, alongside research.
-  Expect a first reply within about a week. Correctness bugs come first.
-- **Supported versions:** Python 3.10 or newer and PennyLane 0.42 or newer, on Linux, macOS
-  and Windows. CI tests the oldest and newest of these. Before 1.0, minor releases may change
-  the API, and `CHANGELOG.md` records every change.
+- **Maintenance:** none. The project is archived (see the status note at the top), so issues
+  and pull requests are closed. To fix or extend it, fork it under either license.
+- **Tested versions:** at the time of archiving, CI tested Python 3.10 to 3.13 and PennyLane
+  0.42 to 0.45, on Linux, macOS and Windows. Newer releases of either may break it.
 - **Contributing:** see [CONTRIBUTING.md](CONTRIBUTING.md) and the
   [code of conduct](CODE_OF_CONDUCT.md).
 - **Citing:** see [CITATION.cff](CITATION.cff), or use "Cite this repository" on GitHub.

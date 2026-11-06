@@ -1,1 +1,0 @@
-Incomplete: stopped after 31 rows (default budget 60 s / timeout 900 s was too slow on this laptop). Superseded by the *-generic-f64 run with --budget 10 --timeout 300. Kept per the never-delete-results rule.

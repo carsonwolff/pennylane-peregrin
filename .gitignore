@@ -9,3 +9,4 @@ target/
 parallel_quantum_processing.py
 # planning notes for coding agents, kept private
 HANDOFF.md
+WRAPUP.md
