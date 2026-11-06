@@ -1,9 +1,11 @@
 __pycache__/
 .venv/
 target/
-# private reference material (copyrighted paper, handoff, figures); not for the public repo
+# private reference material (copyrighted paper, planning documents, figures); not for the public repo
 *.pdf
 *.gif
 *.so
-# owner's original paper code, kept private
+# the author's original paper code, kept private
 parallel_quantum_processing.py
+# planning notes for coding agents, kept private
+HANDOFF.md
