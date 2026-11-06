@@ -1,7 +1,8 @@
 # Contributing to peregrin
 
-Thanks for your interest. Bug reports, questions, benchmark results from other machines, and
-pull requests are all welcome.
+> **This project is archived and is not taking contributions.** Issues and pull requests are
+> closed. The notes below describe how it was built and tested, which is still useful if you
+> fork it.
 
 ## Reporting bugs and asking questions
 
