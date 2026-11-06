@@ -55,8 +55,6 @@ sweeps/cpu.sh               # the full CPU sweep; results land in bench/results/
 python compare.py results/<folders> --md
 ```
 
-Results from CPUs we have not measured are especially welcome. Please open an issue with the
-`results/` folders attached.
 
 ## Pull requests
 
