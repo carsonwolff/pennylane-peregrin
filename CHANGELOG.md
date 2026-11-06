@@ -12,6 +12,8 @@ change the API.
 - The project is archived as of November 2026. It works as documented but is no longer
   developed or maintained, and issues and pull requests are closed. The README, the
   contributing guide and `DESIGN.md` say so, and the planned GPU backend is dropped.
+- No release is made: nothing was published to PyPI, so installing from source is the only
+  install path. `CITATION.cff` no longer gives a version number.
 
 ### Removed
 
