@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "peregrin: fast CPU simulation of large batches of small quantum circuits, with a PennyLane device"
+authors:
+  - family-names: Wolff
+    given-names: Carson
+repository-code: "https://github.com/carsonwolff/pennylane-peregrin"
+license:
+  - MIT
+  - Apache-2.0
+version: 0.1.0
+abstract: >-
+  peregrin is a state-vector simulator for large batches of small (1 to 10 qubit) quantum
+  circuits, built for quanvolutional preprocessing, where one circuit runs once per image
+  patch. The core is written in Rust and runs a whole batch in one call. It is available
+  from Python and as the PennyLane device peregrin.cpu.
+keywords:
+  - quantum computing
+  - quantum machine learning
+  - quanvolution
+  - PennyLane
+  - simulator
