@@ -72,3 +72,9 @@ Code, and Carson approved going ahead with it. `DESIGN.md` lists those decisions
 and Carson reviews them there.
 
 Carson reviews every pull request before it is merged.
+
+## Wrap-up
+
+The work to wind the project down in November 2026 was done by Claude Code: merging the
+documentation, the archive notes in the README and other files, closing the issues, and
+deleting the merged branches. Carson decided to archive the project and approved each step.
