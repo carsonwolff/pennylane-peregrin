@@ -1,9 +1,9 @@
 # Design
 
-> **Draft.** Claude Code wrote this from the code and the commit history. Each decision is
-> marked with who made it. Carson reviews and rewrites it before it is final. Until then,
-> anything marked "not yet reviewed" is the reasoning behind the current code, not a
-> settled decision.
+> **Unreviewed draft.** Claude Code wrote this from the code and the commit history. Each
+> decision is marked with who made it. The project was archived in November 2026 before
+> Carson reviewed this document, so every entry marked "not yet reviewed" stays that way. It
+> describes the reasoning behind the code as it was written, not decisions Carson confirmed.
 
 peregrin simulates large batches of small circuits: 1 to 10 qubits, thousands to hundreds of
 thousands of circuits per call. The case it is built for is quanvolutional preprocessing,
