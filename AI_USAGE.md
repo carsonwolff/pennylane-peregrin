@@ -7,10 +7,8 @@ repository. It is updated in the same pull request as the work it describes.
 
 | Tool | Model | Period |
 |---|---|---|
+| Claude (claude.ai, in the browser) | _model to be filled in by Carson_ | before 2026-11-04 |
 | Claude Code (Anthropic's CLI coding agent) | Claude Opus 5.5 (`claude-opus-5-5`) | from 2026-11-04 |
-
-_For Carson: add any other tool used before 2026-11-04, for example to write the original
-benchmark harness (see below)._
 
 ## How it was used
 
@@ -36,13 +34,18 @@ so.
 | `crates/core` (Rust simulator) | nothing | Designed and wrote all of it: the batch-first API, the tile engine, permutation relabeling, real-state tracking, fusion, vectorized trig, the JSON format, and the golden and unit tests. |
 | `crates/python` (bindings, `peregrin.cpu` device, packaging) | nothing | Designed and wrote all of it, including the device tests and the PennyLane version compatibility. |
 | `.github/` (CI, release, templates) | nothing | Wrote all of it. |
-| `bench/` harness (`run_bench.py`, `worker.py`, `workload.py`, `backends.py`, `summarize.py`) | the original harness, from the first commit | Extended it: `--circuit`, the template interpreter and its elementwise rewrite in `backends.py`, the peregrin backends, `compare.py`, `sweeps/cpu.sh`, and the move to `bench/`. |
+| `bench/` harness (`run_bench.py`, `worker.py`, `workload.py`, `backends.py`, `summarize.py`) | the original harness in the first commit, written by Claude in the browser | Extended it: `--circuit`, the template interpreter and its elementwise rewrite in `backends.py`, the peregrin backends, `compare.py`, `sweeps/cpu.sh`, and the move to `bench/`. |
 | `bench/circuits.py` | the circuits in Carson's paper code and his survey `quanvolution_circuits.md` | Wrote the registry. The `owner-mri` gates are transcribed from Carson's original code and checked against a copy of it in `bench/tests/test_circuits.py`. |
 | `bench/results/`, `bench/RESULTS.md` | `results/stateprep` | Ran every sweep and wrote `RESULTS.md`, on Carson's laptop. |
 | `README.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `CITATION.cff`, `DESIGN.md` | an earlier harness README | Drafted. `CODE_OF_CONDUCT.md` is the unmodified Contributor Covenant 2.1. |
 
-_For Carson: who or what wrote the original harness and `quanvolution_circuits.md` in the
-first commit?_
+The original benchmark harness, the first commit's `run_bench.py`, `worker.py`,
+`workload.py`, `backends.py`, `summarize.py` and `README.md`, was written by Claude in the
+browser (claude.ai), before Claude Code was used. Its first results, `results/stateprep`,
+came from that harness.
+
+_For Carson: who wrote `quanvolution_circuits.md`, and which Claude model was used in the
+browser?_
 
 ## Carson's part
 
