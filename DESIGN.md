@@ -13,8 +13,8 @@ anything else.
 
 ## Scope
 
-**CPU first, GPU later.** Carson's decision. The device is `peregrin.cpu`, and the name
-`peregrin.gpu` is kept for a later GPU backend.
+**CPU first, GPU later.** Carson's decision. The device is `peregrin.cpu`. A GPU backend,
+`peregrin.gpu`, was planned but is not going to be built, because the project is archived.
 
 **f32 and f64 both supported.** Carson's decision. f64 matches `default.qubit` to 1e-12, and
 f32 to 1e-4. f32 roughly doubles the number of circuits per SIMD register.
